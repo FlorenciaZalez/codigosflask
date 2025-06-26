@@ -2,5 +2,5 @@ services:
   - type: web
     name: codigosflask
     env: python
-    buildCommand: "pip install gunicorn && pip install -r requirements.txt"
+    buildCommand: "pip install gunicorn -r requirements.txt"
     startCommand: "gunicorn codigo_app.app:app"
