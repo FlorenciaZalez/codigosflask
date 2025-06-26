@@ -1,6 +1,0 @@
-Flask
-gunicorn
-python-dotenv
-requests
-werkzeug
-email-validator

@@ -9,6 +9,7 @@ from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 load_dotenv()
+BASE_URL = os.getenv("BASE_URL", "http://localhost:5003")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
@@ -297,7 +298,7 @@ def recuperar_clave():
             resultado = c.fetchone()
             if resultado:
                 nombre = resultado[0]
-                reset_link = f"http://localhost:5003/resetear-clave/{nombre}"  # Link ficticio
+                reset_link = f"{BASE_URL}/resetear-clave/{nombre}"
                 try:
                     msg = EmailMessage()
                     msg.set_content(f"Hola {nombre},\n\nPara cambiar tu contraseña hacé clic en el siguiente enlace:\n{reset_link}")
@@ -355,7 +356,7 @@ def register():
                     c.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, ?, 0)",
                             (nuevo_usuario, hashed_password, 'cliente', email))
                     # Enviar correo de verificación
-                    token_link = f"http://localhost:5002/verificar-email/{nuevo_usuario}"
+                    token_link = f"{BASE_URL}/verificar-email/{nuevo_usuario}"
                     msg = EmailMessage()
                     msg.set_content(f"Hola {nuevo_usuario},\n\nPor favor verificá tu cuenta haciendo clic en el siguiente enlace:\n{token_link}")
                     msg["Subject"] = "Verificá tu cuenta"
