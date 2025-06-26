@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registrarse</title>
+</head>
+<body style="margin:0; padding:0; font-family:sans-serif; background:#0f1320; display:flex; align-items:center; justify-content:center; height:100vh;">
+  <div style="background:#1f1f2e; padding:40px; border-radius:16px; width:100%; max-width:400px; box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+    <h2 style="color:#b98eff; text-align:center; margin-bottom:24px;">Crear cuenta</h2>
+    <form method="post" id="registro-form" accept-charset="UTF-8" style="display:flex; flex-direction:column; gap:12px;">
+      <label style="color:white;">Correo electrónico</label>
+      <input type="email" name="email" required style="padding:12px; border:none; border-radius:8px; background:#2c2f3f; color:white;">
+      <label style="color:white;">Usuario</label>
+      <input type="text" name="usuario" required style="padding:12px; border:none; border-radius:8px; background:#2c2f3f; color:white;">
+      <label style="color:white;">Contraseña</label>
+      <input type="password" name="contraseña" required style="padding:12px; border:none; border-radius:8px; background:#2c2f3f; color:white;">
+      <label style="color:white;">Repetir contraseña</label>
+      <input type="password" name="confirmar_contraseña" required style="padding:12px; border:none; border-radius:8px; background:#2c2f3f; color:white;">
+      <label style="color:white;">Código de cliente</label>
+      <input type="text" name="codigo_cliente" required style="padding:12px; border:none; border-radius:8px; background:#2c2f3f; color:white;">
+      <p id="mensaje-error" style="color:#f55; display:none; text-align:center;">⚠️ Las contraseñas no coinciden.</p>
+      <input type="submit" value="Registrarse" style="background:#9b59ff; color:white; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+    </form>
+
+    {% if mensaje %}
+      <p style="color:white; text-align:center; margin-top:15px;">{{ mensaje }}</p>
+    {% endif %}
+
+    <p style="text-align:center; margin-top:20px; color:white;">¿Ya tenés cuenta? <a href="{{ url_for('login') }}" style="color:#b98eff;">Iniciar sesión</a></p>
+    <p style="text-align:center;"><a href="{{ url_for('recuperar_clave') }}" style="color:#b98eff;">¿Olvidaste tu contraseña?</a></p>
+  </div>
+
+  <script>
+    document.querySelector("#registro-form").addEventListener("submit", function (e) {
+      const pass = document.querySelector("input[name='contraseña']").value;
+      const confirm = document.querySelector("input[name='confirmar_contraseña']").value;
+      const mensajeError = document.querySelector("#mensaje-error");
+
+      if (pass !== confirm) {
+        e.preventDefault();  // Evita que se envíe el formulario
+        mensajeError.style.display = "block";
+      } else {
+        mensajeError.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>

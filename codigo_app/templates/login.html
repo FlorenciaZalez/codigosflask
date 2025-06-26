@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Login</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 flex items-center justify-center min-h-screen">
+<div class="bg-gray-800 p-8 rounded-2xl shadow-lg w-full max-w-sm">
+    <h2 class="text-3xl font-bold text-center text-violet-400 mb-6">Iniciar sesión</h2>
+    
+    {% if mensaje %}
+    <div class="bg-red-500 text-white text-sm px-4 py-2 rounded mb-4">
+        {{ mensaje }}
+    </div>
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+    <div>
+        <label class="block text-white text-sm font-medium">Usuario</label>
+        <input type="text" name="usuario" required class="mt-1 w-full px-3 py-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-violet-500">
+    </div>
+    <div>
+        <label class="block text-white text-sm font-medium">Contraseña</label>
+        <input type="password" name="contraseña" required class="mt-1 w-full px-3 py-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-violet-500">
+    </div>
+    <button type="submit" class="w-full bg-violet-500 hover:bg-violet-600 text-white font-semibold py-2 rounded">
+        Ingresar
+    </button>
+    </form>
+
+    <div class="mt-4 text-sm text-center text-white">
+    ¿No tenés cuenta? <a href="{{ url_for('register') }}" class="text-violet-400 hover:underline">Registrate acá</a><br>
+    <a href="{{ url_for('recuperar_clave') }}" class="text-violet-400 hover:underline mt-2 inline-block">¿Olvidaste tu contraseña?</a>
+    </div>
+</div>
+</body>
+</html>

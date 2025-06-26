@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Recuperar Contraseña</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0f172a;
+            font-family: 'Inter', sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #1e293b;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 1.5rem;
+            font-size: 1.75rem;
+            color: #c084fc;
+        }
+        input[type="email"] {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1.25rem;
+            border: none;
+            border-radius: 0.5rem;
+            background-color: #334155;
+            color: #fff;
+        }
+        input[type="submit"] {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #8b5cf6;
+            border: none;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.125rem;
+        }
+        input[type="submit"]:hover {
+            background-color: #7c3aed;
+        }
+        .mensaje {
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            color: #facc15;
+        }
+        a {
+            display: block;
+            margin-top: 1rem;
+            color: #a78bfa;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Recuperar Contraseña</h1>
+        <form method="post">
+            <input type="email" name="email" placeholder="Email registrado" required>
+            <input type="submit" value="Enviar enlace de recuperación">
+        </form>
+
+        {% if mensaje %}
+        <p class="mensaje">{{ mensaje }}</p>
+        {% endif %}
+
+        <a href="{{ url_for('login') }}">Volver al login</a>
+    </div>
+</body>
+</html>

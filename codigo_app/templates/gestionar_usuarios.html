@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Usuarios</title>
+    <style>
+  body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0e0e1c;
+      color: #fff;
+  }
+
+  .container {
+      max-width: 1200px;
+      margin: 50px auto;
+      padding-left: 40px;
+      padding-right: 40px;
+      background-color: #1a1a2e;
+      padding-top: 40px;
+      padding-bottom: 40px;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  }
+
+  h1 {
+      text-align: center;
+      font-size: 2.2rem;
+      margin-bottom: 25px;
+      color: #b388ff;
+  }
+
+  .mensaje {
+      background-color: rgba(179, 136, 255, 0.2);
+      padding: 12px 20px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 20px;
+  }
+
+  table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: rgba(255, 255, 255, 0.03);
+      table-layout: auto;
+  }
+
+  th, td {
+      padding: 10px 8px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  th {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: #d1c4e9;
+  }
+
+  td {
+      color: #f0f0f0;
+  }
+
+  select, button {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+  }
+
+  select {
+      background-color: #2e2e42;
+      color: #fff;
+  }
+
+  button {
+      background-color: #7c4dff;
+      color: white;
+      cursor: pointer;
+      margin-right: 6px;
+      transition: background-color 0.3s ease;
+  }
+
+  button:hover {
+      background-color: #651fff;
+  }
+
+  .acciones {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      justify-content: flex-start;
+      flex-direction: row;
+  }
+
+  .eliminar-link {
+      background: none;
+      border: none;
+      color: white;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0;
+  }
+
+  .eliminar-link:hover {
+      color: #ff6b6b;
+  }
+
+  a {
+      display: inline-block;
+      margin-top: 30px;
+      text-align: center;
+      color: #b388ff;
+      text-decoration: none;
+  }
+
+  a:hover {
+      text-decoration: underline;
+  }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👥 Gestión de Usuarios</h1>
+
+        {% if mensaje %}
+            <div class="mensaje"><strong>{{ mensaje }}</strong></div>
+        {% endif %}
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Email</th>
+                    <th>Verificado</th>
+                    <th>Último acceso</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nombre, rol, email, verificado in usuarios %}
+                <tr>
+                    <td>{{ nombre }}</td>
+                    <td>{{ rol }}</td>
+                    <td>{{ email }}</td>
+                    <td>{{ 'Sí' if verificado else 'No' }}</td>
+                    <td>{{ accesos.get(nombre, 'Sin actividad') }}</td>
+                    <td>
+                        <div class="acciones">
+                            <form method="post" style="display: flex; align-items: center; gap: 20px;">
+                                <input type="hidden" name="cambiar_rol_usuario" value="{{ nombre }}">
+                                <select name="nuevo_rol">
+                                    <option value="cliente" {% if rol == 'cliente' %}selected{% endif %}>cliente</option>
+                                    <option value="admin" {% if rol == 'admin' %}selected{% endif %}>admin</option>
+                                </select>
+                                <button type="submit">Actualizar</button>
+                            </form>
+                            <form method="post" onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ nombre }}?');">
+                                <input type="hidden" name="eliminar_usuario" value="{{ nombre }}">
+                                <button type="submit" class="eliminar-link">Eliminar</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <a href="{{ url_for('home') }}">⬅ Volver al inicio</a>
+    </div>
+</body>
+</html>
