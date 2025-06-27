@@ -130,8 +130,7 @@ def entregar_codigo():
                 SELECT MAX(fecha) FROM historial
                 WHERE usuario = ? AND cuenta = ?
             """, (session['usuario'], cuenta))
-            ultima_entrega = c.fetchone()[0]
-            if ultima_entrega:
+            if (ultima_entrega := c.fetchone()[0]):
                 ultima_fecha = datetime.strptime(ultima_entrega, '%Y-%m-%d %H:%M:%S')
                 if ultima_fecha > cinco_dias_atras:
                     dias_restantes = (ultima_fecha + timedelta(days=5) - datetime.now()).days + 1
@@ -238,15 +237,20 @@ def admin():
             try:
                 import requests
                 import io
-                url_csv = "https://docs.google.com/spreadsheets/d/1NYyGnr0L7zxHjEgHosZSnaJK8TerzcVRJLJwK8Eo9Ic/edit?usp=sharing"
+                url_csv = "https://docs.google.com/spreadsheets/d/1NYyGnr0L7zxHjEgHosZSnaJK8TerzcVRJLJwK8Eo9Ic/export?format=csv"
                 response = requests.get(url_csv)
                 response.encoding = 'utf-8'
                 stream = io.StringIO(response.text)
                 reader = csv.DictReader(stream)
+                print("🧪 Encabezados detectados:", reader.fieldnames)
                 contador = 0
                 for fila in reader:
-                    cuenta = fila.get("cuenta", "").strip()
-                    codigo = fila.get("codigo", "").strip()
+                    # Buscar claves compatibles sin depender del nombre exacto
+                    for key in fila.keys():
+                        print("🔍 Clave encontrada:", key)  # DEBUG
+
+                    cuenta = next((fila[k] for k in fila if k.strip().lower() == "cuenta"), "").strip()
+                    codigo = next((fila[k] for k in fila if k.strip().lower() == "codigo"), "").strip()
                     if cuenta and codigo:
                         c.execute("SELECT 1 FROM codigos WHERE cuenta = ? AND codigo = ?", (cuenta, codigo))
                         if not c.fetchone():
