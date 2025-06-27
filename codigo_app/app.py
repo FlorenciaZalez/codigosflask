@@ -460,4 +460,4 @@ def verificar_email(usuario):
     return render_template("verificar_email.html")
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5003)
+    app.run(debug=True)
