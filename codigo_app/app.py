@@ -174,6 +174,12 @@ def admin():
     mensaje_usuario = ""
     mensaje_csv = ""
 
+    # --- IMPORTAR CÓDIGOS DESDE GOOGLE SHEETS ---
+    # Para importar desde Google Sheets, descomentar el siguiente bloque:
+    # url_csv = "https://docs.google.com/spreadsheets/d/1bHY-StAJI7-QOi7dS3HANMh-Zt5dWuUiMmrWZAEdcOs/export?format=csv"
+    # Reemplazado por el nuevo enlace solicitado:
+    # url_csv = "https://docs.google.com/spreadsheets/d/1NYyGnr0L7zxHjEgHosZSnaJK8TerzcVRJLJwK8Eo9Ic/export?format=csv"
+
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
 
@@ -201,26 +207,54 @@ def admin():
 
 
         # Procesar archivo CSV de códigos de juego si se envía
+        print("🟡 Verificando si hay archivo_csv en request.files:", request.files)
         if 'archivo_csv' in request.files:
             archivo = request.files['archivo_csv']
             if archivo.filename.endswith('.csv'):
+                print("🟢 Archivo CSV recibido:", archivo.filename)
                 try:
-                    contenido = archivo.read().decode('utf-8').splitlines()
-                    reader = csv.reader(contenido)
-                    next(reader, None)  # Skip header if present
+                    import io
+                    stream = io.TextIOWrapper(archivo.stream, encoding='utf-8')
+                    reader = csv.DictReader(stream)
+                    print("CSV campos:", reader.fieldnames)
+                    contador = 0
                     for fila in reader:
-                        if len(fila) >= 2:
-                            cuenta = fila[0].strip()
-                            codigos = fila[1].strip().split()
-                            for codigo in codigos:
-                                c.execute("SELECT 1 FROM codigos WHERE cuenta = ? AND codigo = ?", (cuenta, codigo))
-                                if not c.fetchone():
-                                    c.execute("INSERT INTO codigos (cuenta, codigo) VALUES (?, ?)", (cuenta, codigo))
-                    mensaje_csv = "✅ Archivo CSV cargado correctamente"
+                        print("Fila leída:", fila)
+                        cuenta = fila.get("cuenta", "").strip()
+                        codigo = fila.get("codigo", "").strip()
+                        if cuenta and codigo:
+                            c.execute("SELECT 1 FROM codigos WHERE cuenta = ? AND codigo = ?", (cuenta, codigo))
+                            if not c.fetchone():
+                                c.execute("INSERT INTO codigos (cuenta, codigo) VALUES (?, ?)", (cuenta, codigo))
+                                contador += 1
+                    mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos."
                 except Exception as e:
                     mensaje_csv = f"⚠️ Error al procesar el archivo: {e}"
             else:
                 mensaje_csv = "⚠️ El archivo debe ser .csv"
+
+        # Importar códigos desde Google Sheets
+        if 'importar_desde_google_sheets' in request.form:
+            try:
+                import requests
+                import io
+                url_csv = "https://docs.google.com/spreadsheets/d/1NYyGnr0L7zxHjEgHosZSnaJK8TerzcVRJLJwK8Eo9Ic/edit?usp=sharing"
+                response = requests.get(url_csv)
+                response.encoding = 'utf-8'
+                stream = io.StringIO(response.text)
+                reader = csv.DictReader(stream)
+                contador = 0
+                for fila in reader:
+                    cuenta = fila.get("cuenta", "").strip()
+                    codigo = fila.get("codigo", "").strip()
+                    if cuenta and codigo:
+                        c.execute("SELECT 1 FROM codigos WHERE cuenta = ? AND codigo = ?", (cuenta, codigo))
+                        if not c.fetchone():
+                            c.execute("INSERT INTO codigos (cuenta, codigo) VALUES (?, ?)", (cuenta, codigo))
+                            contador += 1
+                mensaje_csv += f"\n✅ Se importaron {contador} códigos desde Google Sheets."
+            except Exception as e:
+                mensaje_csv += f"\n⚠️ Error al importar desde Google Sheets: {e}"
 
         # Procesar archivo CSV de códigos de cliente si se envía
         if 'archivo_codigos_cliente' in request.files:
