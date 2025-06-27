@@ -232,33 +232,6 @@ def admin():
             else:
                 mensaje_csv = "⚠️ El archivo debe ser .csv"
 
-        # Importar códigos desde Google Sheets
-        if 'importar_desde_google_sheets' in request.form:
-            try:
-                import requests
-                import io
-                url_csv = "https://docs.google.com/spreadsheets/d/1NYyGnr0L7zxHjEgHosZSnaJK8TerzcVRJLJwK8Eo9Ic/export?format=csv"
-                response = requests.get(url_csv)
-                response.encoding = 'utf-8'
-                stream = io.StringIO(response.text)
-                reader = csv.DictReader(stream)
-                print("🧪 Encabezados detectados:", reader.fieldnames)
-                contador = 0
-                for fila in reader:
-                    # Buscar claves compatibles sin depender del nombre exacto
-                    for key in fila.keys():
-                        print("🔍 Clave encontrada:", key)  # DEBUG
-
-                    cuenta = next((fila[k] for k in fila if k.strip().lower() == "cuenta"), "").strip()
-                    codigo = next((fila[k] for k in fila if k.strip().lower() == "codigo"), "").strip()
-                    if cuenta and codigo:
-                        c.execute("SELECT 1 FROM codigos WHERE cuenta = ? AND codigo = ?", (cuenta, codigo))
-                        if not c.fetchone():
-                            c.execute("INSERT INTO codigos (cuenta, codigo) VALUES (?, ?)", (cuenta, codigo))
-                            contador += 1
-                mensaje_csv += f"\n✅ Se importaron {contador} códigos desde Google Sheets."
-            except Exception as e:
-                mensaje_csv += f"\n⚠️ Error al importar desde Google Sheets: {e}"
 
         # Procesar archivo CSV de códigos de cliente si se envía
         if 'archivo_codigos_cliente' in request.files:
