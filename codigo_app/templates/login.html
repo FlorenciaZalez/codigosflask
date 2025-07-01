@@ -3,42 +3,48 @@
 <head>
 <meta charset="UTF-8" />
 <title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @media (max-width: 640px) {
+    body {
+      background-image: url('{{ url_for('static', filename='assets/fondo9.16.png') }}') !important;
+    }
+  }
+</style>
 </head>
 <body 
     class="flex items-center justify-center min-h-screen bg-gray-900"
     style="background-image: url('{{ url_for('static', filename='assets/fondo.png') }}'); background-size: cover; background-position: center;">
-    <!-- Contenedor principal centrado y subido -->
-    <div class="flex flex-col items-center w-full max-w-xl gap-6 -mt-12">
-        <!-- Logo arriba del formulario y más grande -->
-        <img src="{{ url_for('static', filename='assets/logolargo.png') }}" alt="Logo de Marca" class="w-48 max-w-xs mx-auto mb-2 mt-4">
-        <div class="bg-gray-800 bg-opacity-20 backdrop-blur-md p-[32px] rounded-2xl shadow-lg w-full">
-            <h2 class="text-3xl font-bold text-center text-violet-400 mb-6 mt-2">Iniciar sesión</h2>
-            
+<div class="flex flex-col items-center w-full max-w-xl gap-6 -mt-12 px-2">
+    <!-- Logo arriba del formulario y más grande -->
+    <img src="{{ url_for('static', filename='assets/logolargo.png') }}" alt="Logo de Marca" class="w-48 max-w-xs mx-auto mb-2 mt-4 sm:w-32">
+    <div class="bg-gray-800 bg-opacity-20 backdrop-blur-md p-[32px] sm:p-4 rounded-2xl shadow-lg w-full"
+         style="max-width: 100vw; box-sizing: border-box; margin-left: 24px; margin-right: 24px;">
+        <h2 class="text-3xl font-bold text-center text-violet-400 mb-6 mt-2 sm:text-2xl">Iniciar sesión</h2>
+        <form method="post" class="space-y-4 w-full">
+            <div>
+                <label class="block text-white text-sm font-medium">Usuario</label>
+                <input type="text" name="usuario" required class="mt-1 w-full px-3 py-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 text-base sm:text-sm">
+            </div>
+            <div>
+                <label class="block text-white text-sm font-medium">Contraseña</label>
+                <input type="password" name="contraseña" required class="mt-1 w-full px-3 py-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 text-base sm:text-sm">
+            </div>
             {% if mensaje %}
-            <div class="bg-red-500 text-white text-sm px-4 py-2 rounded mb-4">
+            <div class="text-center text-red-500 text-sm mt-2 mb-2">
                 {{ mensaje }}
             </div>
             {% endif %}
-
-            <form method="post" class="space-y-4 w-full">
-                <div>
-                    <label class="block text-white text-sm font-medium">Usuario</label>
-                    <input type="text" name="usuario" required class="mt-1 w-full px-3 py-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-violet-500">
-                </div>
-                <div>
-                    <label class="block text-white text-sm font-medium">Contraseña</label>
-                    <input type="password" name="contraseña" required class="mt-1 w-full px-3 py-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-violet-500">
-                </div>
-                <button type="submit" class="w-full bg-violet-500 hover:bg-violet-600 text-white font-semibold py-2 rounded">
-                    Ingresar
-                </button>
-            </form>
-
-            <div class="mt-4 mb-4 text-sm text-center text-white w-full">
-                ¿No tenés cuenta? <a href="{{ url_for('register') }}" class="text-violet-400 hover:underline">Registrate acá</a><br>
-                <a href="{{ url_for('recuperar_clave') }}" class="text-violet-400 hover:underline mt-2 inline-block">¿Olvidaste tu contraseña?</a>
-            </div>
+            <button type="submit" class="w-full bg-violet-500 hover:bg-violet-600 text-white font-semibold py-2 rounded text-base sm:text-sm">
+                Ingresar
+            </button>
+        </form>
+        <div class="mt-4 mb-4 text-sm text-center text-white w-full">
+            ¿No tenés cuenta? <a href="{{ url_for('register') }}" class="text-violet-400 hover:underline">Registrate acá</a><br>
+            <a href="{{ url_for('recuperar_clave') }}" class="text-violet-400 hover:underline mt-2 inline-block">¿Olvidaste tu contraseña?</a>
         </div>
     </div>
+</div>
 </body>
+</html>

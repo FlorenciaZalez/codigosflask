@@ -66,9 +66,7 @@ with sqlite3.connect(DB_PATH) as conn:
         c.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, ?, ?)", ('admin', hashed, 'admin', 'admin@mail.com', 1))
 
 @app.route('/')
-def index():
-    if 'usuario' in session:
-        return redirect(url_for('home'))
+def home_redirect():
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -87,7 +85,8 @@ def login():
                 session['rol'] = user[3]
                 return redirect(url_for('home'))
             else:
-                return "❌ Usuario o contraseña incorrectos"
+                mensaje = "❌ Usuario o contraseña incorrectos"
+                return render_template('login.html', mensaje=mensaje)
     return render_template('login.html')
 
 @app.route('/logout')
@@ -461,3 +460,4 @@ def verificar_email(usuario):
 
 if __name__ == '__main__':
     app.run(debug=True)
+    

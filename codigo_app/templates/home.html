@@ -5,16 +5,20 @@
     <title>Inicio</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-[#1e1b2e] text-white min-h-screen flex flex-col items-center justify-center px-4">
-    <div class="bg-[#2a2540] p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h2 class="text-2xl font-bold mb-6 text-center">Bienvenido, {{ usuario }}</h2>
-        <div class="flex flex-col gap-4">
-            <a href="/codigo" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center">Obtener código por cuenta</a>
-            {% if rol == 'admin' %}
-                <a href="/admin" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center">Ir al panel de administración</a>
-                <a href="/gestionar-usuarios" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center">Gestionar usuarios</a>
-            {% endif %}
-            <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-full text-center">Cerrar sesión</a>
+<body 
+    class="flex items-center justify-center min-h-screen bg-gray-900"
+    style="background-image: url('{{ url_for('static', filename='assets/fondoOscuro.png') }}'); background-size: cover; background-position: center;">
+    <div class="flex flex-col items-center w-full max-w-xl gap-6 -mt-12">
+        <div class="bg-gray-800 bg-opacity-30 backdrop-blur-md p-[32px] rounded-2xl shadow-lg w-full">
+            <h2 class="text-3xl font-semibold text-center text-violet-400 mb-6 mt-2">Bienvenido, {{ usuario }}</h2>
+            <div class="flex flex-col gap-4">
+                <a href="/codigo" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center">Obtener código por cuenta</a>
+                {% if rol == 'admin' %}
+                    <a href="/admin" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center">Ir al panel de administración</a>
+                    <a href="/gestionar-usuarios" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center">Gestionar usuarios</a>
+                {% endif %}
+                <a href="/logout" class="text-red-500 hover:underline font-semibold text-center">Cerrar sesión</a>
+            </div>
         </div>
     </div>
 </body>
