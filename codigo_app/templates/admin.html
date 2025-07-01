@@ -15,7 +15,7 @@
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-start">
-<div class="w-full flex flex-col items-center px-2">
+<div class="w-full flex flex-col items-center px-4 max-w-md">
     <div class="w-full flex flex-col items-center">
         <div class="relative w-full flex flex-col items-center mt-8 mb-4">
             <img src="{{ url_for('static', filename='assets/logolargo.png') }}" alt="Logo de Marca" class="w-48 h-auto rounded-lg shadow-lg mx-auto">
@@ -30,15 +30,15 @@
                 <a href="/logout" class="hover:underline text-red-400">Cerrar sesión</a>
             </div>
         </nav>
-        <div class="bg-gray-900 bg-opacity-80 text-white rounded-lg shadow-lg p-4 sm:p-8 w-full mt-4" style="max-width: 100vw; box-sizing: border-box; margin-left: 24px; margin-right: 24px;">
+        <div class="bg-gray-900 bg-opacity-80 text-white rounded-lg shadow-lg p-4 sm:p-8 w-full mt-4 max-w-md px-4" style="max-width: 100vw; box-sizing: border-box; margin-left: 24px; margin-right: 24px;">
             <!-- Historial -->
             <section class="mb-10">
                 <h3 class="text-xl font-semibold mb-4">Filtrar historial</h3>
-                <form method="get" action="#historial" class="glass-card p-4 rounded shadow-inner flex flex-col gap-4 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
-                    <div class="flex flex-col gap-4 w-full">
+                <form method="get" action="#historial" class="glass-card p-4 rounded shadow-inner flex flex-col gap-5 w-full max-w-md px-4" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                    <div class="flex flex-col gap-5 w-full max-w-md px-4">
                         <div class="w-full">
-                            <label class="block text-sm font-medium">Usuario:</label>
-                            <select name="usuario_filtro" class="w-full border rounded px-2 py-1 text-black">
+                            <label class="block text-base font-medium">Usuario:</label>
+                            <select name="usuario_filtro" class="w-full border rounded px-4 py-3 text-black text-base">
                                 <option value="">Todos</option>
                                 {% for user in usuarios_historial %}
                                 <option value="{{ user }}" {% if request.args.get('usuario_filtro') == user %}selected{% endif %}>{{ user }}</option>
@@ -46,8 +46,8 @@
                             </select>
                         </div>
                         <div class="w-full">
-                            <label class="block text-sm font-medium">Cuenta:</label>
-                            <select name="cuenta_filtro" class="w-full border rounded px-2 py-1 text-black">
+                            <label class="block text-base font-medium">Cuenta:</label>
+                            <select name="cuenta_filtro" class="w-full border rounded px-4 py-3 text-black text-base">
                                 <option value="">Todas</option>
                                 {% for cta in cuentas_historial %}
                                 <option value="{{ cta }}" {% if request.args.get('cuenta_filtro') == cta %}selected{% endif %}>{{ cta }}</option>
@@ -55,15 +55,15 @@
                             </select>
                         </div>
                         <div class="w-full">
-                            <label class="block text-sm font-medium">Desde:</label>
-                            <input type="date" name="fecha_inicio" value="{{ request.args.get('fecha_inicio', '') }}" class="w-full border rounded px-2 py-1 text-black">
+                            <label class="block text-base font-medium">Desde:</label>
+                            <input type="date" name="fecha_inicio" value="{{ request.args.get('fecha_inicio', '') }}" class="w-full border rounded px-4 py-3 text-black text-base">
                         </div>
                         <div class="w-full">
-                            <label class="block text-sm font-medium">Hasta:</label>
-                            <input type="date" name="fecha_fin" value="{{ request.args.get('fecha_fin', '') }}" class="w-full border rounded px-2 py-1 text-black">
+                            <label class="block text-base font-medium">Hasta:</label>
+                            <input type="date" name="fecha_fin" value="{{ request.args.get('fecha_fin', '') }}" class="w-full border rounded px-4 py-3 text-black text-base">
                         </div>
-                        <button type="submit" class="bg-purple-600 text-white px-6 py-3 rounded-full hover:bg-purple-700 w-full">Filtrar</button>
-                        <a href="/admin#historial" class="bg-gray-300 text-black px-6 py-3 rounded-full hover:bg-gray-400 w-full text-center text-sm flex items-center justify-center">Quitar filtros</a>
+                        <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-base">Filtrar</button>
+                        <a href="/admin#historial" class="bg-gray-300 text-black px-4 py-3 rounded-full hover:bg-gray-400 w-full text-center text-base flex items-center justify-center">Quitar filtros</a>
                     </div>
                 </form>
             </section>
@@ -99,13 +99,13 @@
 
             <!-- Cargar código -->
             <section class="mb-10">
-                <form method="post" class="glass-card p-4 rounded shadow-inner flex flex-col gap-3 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
-                    <input type="text" name="cuenta" placeholder="Número de cuenta" required class="border rounded px-2 py-1 text-black w-full">
-                    <input type="text" name="codigo" placeholder="Nuevo código" required class="border rounded px-2 py-1 text-black w-full">
-                    <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-full hover:bg-purple-700 w-full">Agregar código</button>
+                <form method="post" class="glass-card p-4 rounded shadow-inner flex flex-col gap-5 w-full max-w-md px-4" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                    <input type="text" name="cuenta" placeholder="Número de cuenta" required class="border rounded px-4 py-3 text-black text-base w-full">
+                    <input type="text" name="codigo" placeholder="Nuevo código" required class="border rounded px-4 py-3 text-black text-base w-full">
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-base">Agregar código</button>
                 </form>
                 {% if mensaje_codigo %}
-                    <p class="text-sm mt-2 text-green-700">{{ mensaje_codigo }}</p>
+                    <p class="text-base mt-2 text-green-700">{{ mensaje_codigo }}</p>
                 {% endif %}
             </section>
             <hr class="border-t border-white my-6">
@@ -113,17 +113,17 @@
             <!-- Crear usuario -->
             <section class="mb-10">
                 <h3 class="text-xl font-semibold mb-4">Crear nuevo usuario</h3>
-                <form method="post" class="glass-card p-4 rounded shadow-inner flex flex-col gap-3 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
-                    <input type="text" name="nuevo_usuario" placeholder="Nombre de usuario" required class="border rounded px-2 py-1 text-black w-full">
-                    <input type="password" name="nueva_contraseña" placeholder="Contraseña" required class="border rounded px-2 py-1 text-black w-full">
-                    <select name="rol" class="border border-gray-500 bg-gray-700 text-white rounded px-2 py-1 appearance-none relative text-black w-full">
+                <form method="post" class="glass-card p-4 rounded shadow-inner flex flex-col gap-5 w-full max-w-md px-4" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                    <input type="text" name="nuevo_usuario" placeholder="Nombre de usuario" required class="border rounded px-4 py-3 text-black text-base w-full">
+                    <input type="password" name="nueva_contraseña" placeholder="Contraseña" required class="border rounded px-4 py-3 text-black text-base w-full">
+                    <select name="rol" class="border border-gray-500 bg-gray-700 text-white rounded px-4 py-3 appearance-none relative text-black text-base w-full">
                         <option value="cliente">Cliente</option>
                         <option value="admin">Admin</option>
                     </select>
-                    <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-full hover:bg-purple-700 w-full">Crear usuario</button>
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-base">Crear usuario</button>
                 </form>
                 {% if mensaje_usuario %}
-                    <p class="text-sm mt-2 text-blue-700">{{ mensaje_usuario }}</p>
+                    <p class="text-base mt-2 text-blue-700">{{ mensaje_usuario }}</p>
                 {% endif %}
             </section>
             <hr class="border-t border-white my-6">
@@ -131,19 +131,19 @@
             <!-- CSV de códigos cliente -->
             <section class="mb-10">
                 <h3 class="text-xl font-semibold mb-4">Subir CSV de códigos de cliente</h3>
-                <form method="post" enctype="multipart/form-data" class="glass-card p-4 rounded shadow-inner flex flex-col gap-3 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
-                    <div class="flex flex-col gap-2 w-full">
-                        <label for="archivo_codigos_cliente" class="text-sm text-white">Seleccionar archivo CSV</label>
-                        <input type="file" name="archivo_codigos_cliente" id="archivo_codigos_cliente" accept=".csv" required class="text-sm text-white bg-gray-800 rounded px-4 py-2 border border-gray-600 file:hidden w-full">
-                        <label id="nombre-archivo-2" class="text-sm text-gray-400 truncate">Ningún archivo seleccionado</label>
+                <form method="post" enctype="multipart/form-data" class="glass-card p-4 rounded shadow-inner flex flex-col gap-5 w-full max-w-md px-4" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                    <div class="flex flex-col gap-5 w-full max-w-md px-4">
+                        <label for="archivo_codigos_cliente" class="text-base text-white">Seleccionar archivo CSV</label>
+                        <input type="file" name="archivo_codigos_cliente" id="archivo_codigos_cliente" accept=".csv" required class="text-base text-white bg-gray-800 rounded px-4 py-3 border border-gray-600 file:hidden w-full">
+                        <label id="nombre-archivo-2" class="text-base text-gray-400 truncate">Ningún archivo seleccionado</label>
                     </div>
-                    <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-full hover:bg-purple-700 w-full">Cargar archivo</button>
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-base">Cargar archivo</button>
                 </form>
                 {% if mensaje_codigos_cliente %}
-                    <p class="text-sm mt-2 text-indigo-700">{{ mensaje_codigos_cliente }}</p>
+                    <p class="text-base mt-2 text-indigo-700">{{ mensaje_codigos_cliente }}</p>
                 {% endif %}
                 {% if debug_codigos_cliente %}
-                    <ul class="text-sm mt-2 text-green-500 list-disc list-inside">
+                    <ul class="text-base mt-2 text-green-500 list-disc list-inside">
                         {% for linea in debug_codigos_cliente %}
                             <li>{{ linea }}</li>
                         {% endfor %}
