@@ -458,6 +458,6 @@ def verificar_email(usuario):
         c.execute("UPDATE usuarios SET verificado = 1 WHERE nombre = ?", (usuario,))
     return render_template("verificar_email.html")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
     

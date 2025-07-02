@@ -2,19 +2,29 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Panel de Administración</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
     body {
-        background-image: url('/static/631bcb91-5990-4e17-b510-9bcb514720f1.jpeg');
+        background-image: url('{{ url_for('static', filename='assets/fondoOscuro.png') }}');
         background-attachment: fixed;
         background-repeat: no-repeat;
         background-size: cover;
         background-position: center;
     }
     @media (max-width: 640px) {
+        html, body {
+            overflow-x: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        nav, .bg-gray-900.bg-opacity-80 {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
         body {
-            padding: 0 1rem;
+            padding: 0;
         }
         h1, h2, h3, .section-title {
             font-size: 2rem !important;
@@ -24,10 +34,10 @@
             font-size: 1rem !important;
         }
         input, select, button, textarea {
-            font-size: 1rem !important;
-            padding-top: 1rem !important;
-            padding-bottom: 1rem !important;
-            min-height: 3.5rem !important;
+            font-size: 1.25rem !important;
+            padding-top: 1.25rem !important;
+            padding-bottom: 1.25rem !important;
+            min-height: 4rem !important;
             border-radius: 0.75rem !important;
         }
         .text-sm {
@@ -59,30 +69,37 @@
         form {
             width: 100% !important;
         }
+        button.inicio-btn {
+            height: 42px !important;
+            min-height: 42px !important;
+        }
     }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-start">
-<div class="w-full flex flex-col items-center px-2">
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-start px-4 sm:px-8">
+<div class="w-full flex flex-col items-center px-4 sm:px-8">
     <div class="w-full flex flex-col items-center">
         <div class="relative w-full flex flex-col items-center mt-8 mb-4">
             <img src="{{ url_for('static', filename='assets/logolargo.png') }}" alt="Logo de Marca" class="w-48 h-auto rounded-lg shadow-lg mx-auto">
         </div>
-        <nav class="w-full bg-gray-900 bg-opacity-90 text-white py-3 px-4 flex flex-col sm:flex-row justify-between items-center shadow-lg z-50 rounded-2xl mb-6" style="max-width: 100vw; box-sizing: border-box; margin-left: 24px; margin-right: 24px;">
+        <!-- NAV CON EFECTO VIDRIO -->
+        <nav class="w-full bg-gray-900 bg-opacity-40 backdrop-blur-md text-white py-3 px-4 sm:px-8 flex flex-col sm:flex-row justify-between items-center shadow-lg z-50 rounded-2xl mb-6">
             <div class="flex items-center gap-2 mb-2 sm:mb-0">
                 <img src="https://cdn-icons-png.flaticon.com/512/9187/9187604.png" alt="admin icon" class="w-6 h-6">
-                <span class="font-bold text-lg section-title">Panel de Administración</span>
+                <span class="font-normal text-base section-title">Panel de Administración</span>
             </div>
             <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-                <a href="/home" class="hover:underline text-purple-400">Inicio</a>
-                <a href="/logout" class="hover:underline text-red-400">Cerrar sesión</a>
+                <form method="get" action="/home" class="w-full sm:w-auto">
+                    <button type="submit" class="inicio-btn w-[415px] mx-auto flex items-center justify-center bg-purple-600 text-white px-4 sm:px-4 sm:py-3 rounded-full hover:bg-purple-700 text-lg">Inicio</button>
+                </form>
             </div>
         </nav>
-        <div class="bg-gray-900 bg-opacity-80 text-white rounded-lg shadow-lg p-4 sm:p-8 w-full mt-4" style="max-width: 100vw; box-sizing: border-box; margin-left: 24px; margin-right: 24px;">
+        <!-- CONTENEDOR PRINCIPAL CON EFECTO VIDRIO -->
+        <div class="bg-gray-900 bg-opacity-40 backdrop-blur-sm text-white rounded-lg shadow-lg py-4 sm:py-8 px-0 sm:px-8 w-full mt-4">
             <!-- Historial -->
             <section class="mb-10">
-                <h3 class="text-xl font-semibold mb-4 section-title">Filtrar historial</h3>
-                <form method="get" action="#historial" class="glass-card p-4 rounded shadow-inner flex flex-col gap-4 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                <h3 class="text-lg font-normal mb-4 section-title">Filtrar historial</h3>
+                <form method="get" action="#historial" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-4 w-full">
                     <div class="flex flex-col gap-4 w-full">
                         <div class="w-full">
                             <label class="block text-base sm:text-sm font-medium">Usuario:</label>
@@ -119,9 +136,9 @@
 
             <!-- Tabla de historial -->
             <section class="mb-10">
-                <h3 class="text-xl font-semibold mb-4 section-title">Historial de entregas</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white shadow rounded overflow-hidden">
+                <h3 class="text-lg font-normal mb-4 section-title">Historial de entregas</h3>
+                <div class="overflow-x-auto w-full box-border px-4 sm:px-8">
+                    <table class="w-full table-fixed box-border bg-white shadow rounded overflow-hidden">
                         <thead class="bg-purple-100 text-purple-800">
                             <tr>
                                 <th class="px-4 py-2 text-left">Usuario</th>
@@ -147,8 +164,8 @@
 
             <!-- Cargar código -->
             <section class="mb-10">
-                <h3 class="text-xl font-semibold mb-4 section-title">Cargar código</h3>
-                <form method="post" class="glass-card p-4 rounded shadow-inner flex flex-col gap-3 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                <h3 class="text-lg font-normal mb-4 section-title">Cargar código</h3>
+                <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
                     <input type="text" name="cuenta" placeholder="Número de cuenta" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="text" name="codigo" placeholder="Nuevo código" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Agregar código</button>
@@ -161,8 +178,8 @@
 
             <!-- Crear usuario -->
             <section class="mb-10">
-                <h3 class="text-xl font-semibold mb-4 section-title">Crear nuevo usuario</h3>
-                <form method="post" class="glass-card p-4 rounded shadow-inner flex flex-col gap-3 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                <h3 class="text-lg font-normal mb-4 section-title">Crear nuevo usuario</h3>
+                <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
                     <input type="text" name="nuevo_usuario" placeholder="Nombre de usuario" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="password" name="nueva_contraseña" placeholder="Contraseña" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <select name="rol" class="border border-gray-500 bg-gray-700 text-white rounded px-4 py-3 sm:px-2 sm:py-1 appearance-none relative text-black w-full text-lg sm:text-base">
@@ -179,8 +196,8 @@
 
             <!-- CSV de códigos cliente -->
             <section class="mb-10">
-                <h3 class="text-xl font-semibold mb-4 section-title">Subir CSV de códigos de cliente</h3>
-                <form method="post" enctype="multipart/form-data" class="glass-card p-4 rounded shadow-inner flex flex-col gap-3 w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 0; margin-right: 0;">
+                <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de cliente</h3>
+                <form method="post" enctype="multipart/form-data" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
                     <div class="flex flex-col gap-2 w-full">
                         <label for="archivo_codigos_cliente" class="text-base sm:text-sm text-white">Seleccionar archivo CSV</label>
                         <input type="file" name="archivo_codigos_cliente" id="archivo_codigos_cliente" accept=".csv" required class="text-lg sm:text-base text-white bg-gray-800 rounded px-4 py-3 sm:px-2 sm:py-1 border border-gray-600 file:hidden w-full">
@@ -202,6 +219,9 @@
         </div>
     </div>
 </div>
+<div class="w-full flex justify-center py-8">
+    <a href="/logout" class="text-red-600 hover:underline text-lg">Cerrar sesión</a>
+</div>
 <script>
 document.querySelectorAll('input[type="file"]').forEach((input, i) => {
     input.addEventListener('change', (e) => {
@@ -210,6 +230,3 @@ document.querySelectorAll('input[type="file"]').forEach((input, i) => {
     if (label) label.textContent = fileName;
     });
 });
-</script>
-</body>
-</html>
