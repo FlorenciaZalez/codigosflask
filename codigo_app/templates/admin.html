@@ -72,6 +72,7 @@
         button.inicio-btn {
             height: 42px !important;
             min-height: 42px !important;
+            width: 100% !important;
         }
     }
     </style>
@@ -88,9 +89,9 @@
                 <img src="https://cdn-icons-png.flaticon.com/512/9187/9187604.png" alt="admin icon" class="w-6 h-6">
                 <span class="font-normal text-base section-title">Panel de Administración</span>
             </div>
-            <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <div class="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
                 <form method="get" action="/home" class="w-full sm:w-auto">
-                    <button type="submit" class="inicio-btn w-[415px] mx-auto flex items-center justify-center bg-purple-600 text-white px-4 sm:px-4 sm:py-3 rounded-full hover:bg-purple-700 text-lg">Inicio</button>
+                    <button type="submit" class="inicio-btn w-full mx-auto flex items-center justify-center bg-purple-600 text-white px-4 sm:px-4 sm:py-3 rounded-full hover:bg-purple-700 text-lg">Inicio</button>
                 </form>
             </div>
         </nav>
