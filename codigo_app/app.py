@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, url_for
 import csv
-from werkzeug.utils import secure_filename
 import sqlite3
 import os
 import requests  # Asegurate de que esté importado al comienzo del archivo
@@ -13,7 +12,7 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:5003")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 app.secret_key = 'clave_super_segura'
 DB_PATH = "db/codigos.db"
 
@@ -140,8 +139,7 @@ def entregar_codigo():
             # Si se desea filtrar por estado, asegurarse de que la columna 'estado' exista en la tabla 'codigos'.
             # c.execute("SELECT id, codigo FROM codigos WHERE cuenta = ? AND estado = 'disponible' LIMIT 1", (cuenta,))
             c.execute("SELECT id, codigo FROM codigos WHERE cuenta = ? LIMIT 1", (cuenta,))
-            row = c.fetchone()
-            if row:
+            if row := c.fetchone():
                 codigo_id, codigo = row
                 # Eliminar el código entregado
                 c.execute("DELETE FROM codigos WHERE id = ?", (codigo_id,))
@@ -153,24 +151,17 @@ def entregar_codigo():
                 mensaje = f"✅ Tu código es: {codigo}"
             else:
                 mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
-                # Enviar WhatsApp si no hay códigos
-                whatsapp_message = f"⚠️ La cuenta {cuenta} se quedó sin códigos disponibles."
-                url = f"https://api.callmebot.com/whatsapp.php?phone=+549XXXXXXXXXX&text={whatsapp_message}&apikey=YOUR_API_KEY"
-                try:
-                    requests.get(url)
-                except:
-                    print("No se pudo enviar el WhatsApp de aviso.")
 
     return render_template("entregar_codigo.html", mensaje=mensaje)
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if 'usuario' not in session or session.get('rol') != 'admin':
-        return redirect(url_for('login'))
-
     mensaje_codigo = ""
     mensaje_usuario = ""
     mensaje_csv = ""
+    historial = []
+    usuarios_historial = []
+    cuentas_historial = []
 
     # --- IMPORTAR CÓDIGOS DESDE GOOGLE SHEETS ---
     # Para importar desde Google Sheets, descomentar el siguiente bloque:
@@ -241,8 +232,7 @@ def admin():
                     reader = csv.DictReader(contenido)
                     for fila in reader:
                         codigo_cliente = fila.get('codigo_cliente') or fila.get('codigo') or ''
-                        codigo_cliente = codigo_cliente.strip()
-                        if codigo_cliente:
+                        if (codigo_cliente := codigo_cliente.strip()):
                             c.execute("SELECT 1 FROM codigos_cliente WHERE codigo_cliente = ?", (codigo_cliente,))
                             if not c.fetchone():
                                 c.execute("INSERT INTO codigos_cliente (codigo_cliente, usado) VALUES (?, 0)", (codigo_cliente,))
@@ -259,29 +249,34 @@ def admin():
         # Filtros para historial
         usuario_filtro = request.args.get('usuario_filtro', '').strip()
         cuenta_filtro = request.args.get('cuenta_filtro', '').strip()
-        query = "SELECT usuario, cuenta, codigo, fecha FROM historial"
-        params = []
+        fecha_inicio = request.args.get('fecha_inicio', '').strip()
+        fecha_fin = request.args.get('fecha_fin', '').strip()
 
-        if usuario_filtro:
-            query += " WHERE usuario = ?"
-            params.append(usuario_filtro)
-
-        if cuenta_filtro:
-            if params:
-                query += " AND cuenta = ?"
-            else:
-                query += " WHERE cuenta = ?"
-            params.append(cuenta_filtro)
-
-        query += " ORDER BY fecha DESC LIMIT 100"
-        c.execute(query, tuple(params))
-        historial = c.fetchall()
-
-        # Obtener todos los usuarios únicos y cuentas únicas del historial
+        # Obtener todos los usuarios únicos y cuentas únicas del historial SIEMPRE
         c.execute("SELECT DISTINCT usuario FROM historial ORDER BY usuario")
         usuarios_historial = [fila[0] for fila in c.fetchall()]
         c.execute("SELECT DISTINCT cuenta FROM historial ORDER BY cuenta")
         cuentas_historial = [fila[0] for fila in c.fetchall()]
+
+        # Solo buscar si hay algún filtro aplicado
+        if usuario_filtro or cuenta_filtro or fecha_inicio or fecha_fin:
+            query = "SELECT usuario, cuenta, codigo, fecha FROM historial WHERE 1=1"
+            params = []
+            if usuario_filtro:
+                query += " AND usuario = ?"
+                params.append(usuario_filtro)
+            if cuenta_filtro:
+                query += " AND cuenta = ?"
+                params.append(cuenta_filtro)
+            if fecha_inicio:
+                query += " AND DATE(fecha) >= DATE(?)"
+                params.append(fecha_inicio)
+            if fecha_fin:
+                query += " AND DATE(fecha) <= DATE(?)"
+                params.append(fecha_fin)
+            query += " ORDER BY fecha DESC LIMIT 100"
+            c.execute(query, tuple(params))
+            historial = c.fetchall()
 
         # 🔴 BORRAR TODOS LOS CÓDIGOS (USO TEMPORAL)
         if request.args.get('borrar_codigos') == '1':
@@ -305,8 +300,7 @@ def recuperar_clave():
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
             c.execute("SELECT nombre FROM usuarios WHERE email = ?", (email,))
-            resultado = c.fetchone()
-            if resultado:
+            if (resultado := c.fetchone()):
                 nombre = resultado[0]
                 reset_link = f"{BASE_URL}/resetear-clave/{nombre}"
                 try:
@@ -460,4 +454,4 @@ def verificar_email(usuario):
 
 if __name__ == "__main__":
     app.run(debug=True)
-    
+

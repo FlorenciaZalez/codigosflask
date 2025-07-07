@@ -136,32 +136,35 @@
             <hr class="border-t border-white my-6">
 
             <!-- Tabla de historial -->
-            <section class="mb-10">
-                <h3 class="text-lg font-normal mb-4 section-title">Historial de entregas</h3>
-                <div class="overflow-x-auto w-full box-border px-4 sm:px-8 text-black">
-                    <table class="w-full table-fixed box-border bg-white shadow rounded overflow-hidden">
-                        <thead class="bg-purple-100 text-purple-800">
-                            <tr>
-                                <th class="px-4 py-2 text-left">Usuario</th>
-                                <th class="px-4 py-2 text-left">Cuenta</th>
-                                <th class="px-4 py-2 text-left">Código</th>
-                                <th class="px-4 py-2 text-left">Fecha</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for usuario, cuenta, codigo, fecha in historial %}
-                            <tr class="border-t">
-                                <td class="px-4 py-2 text-sm">{{ usuario }}</td>
-                                <td class="px-4 py-2 text-sm">{{ cuenta }}</td>
-                                <td class="px-4 py-2 text-sm">{{ codigo }}</td>
-                                <td class="px-4 py-2 text-center text-sm">{{ fecha }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-            <hr class="border-t border-white my-6">
+        <section class="mb-10">
+            <h3 class="text-lg font-normal mb-4 section-title">Historial de entregas</h3>
+            {% if historial %}
+            <div class="overflow-x-auto w-full box-border px-4 sm:px-8 text-black">
+            <table class="w-full table-fixed box-border bg-white shadow rounded overflow-hidden">
+                <thead class="bg-purple-100 text-purple-800">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Usuario</th>
+                        <th class="px-4 py-2 text-left">Cuenta</th>
+                        <th class="px-4 py-2 text-left">Código</th>
+                        <th class="px-4 py-2 text-left">Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario, cuenta, codigo, fecha in historial %}
+                    <tr class="border-t">
+                        <td class="px-4 py-2">{{ usuario }}</td>
+                        <td class="px-4 py-2">{{ cuenta }}</td>
+                        <td class="px-4 py-2">{{ codigo }}</td>
+                        <td class="px-4 py-2">{{ fecha }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p class="text-center text-gray-400">Usa los filtros para ver el historial de entregas</p>
+        {% endif %}
+</section>
 
             <!-- Cargar código -->
             <section class="mb-10">
@@ -230,4 +233,6 @@ document.querySelectorAll('input[type="file"]').forEach((input, i) => {
     const label = document.getElementById(`nombre-archivo-${i + 1}`);
     if (label) label.textContent = fileName;
     });
-});
+});</script>
+</body>
+</html>
