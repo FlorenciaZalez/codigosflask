@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Entrega de Código</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -14,28 +15,28 @@
             color: #ffffff;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            padding: 0;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center px-4 sm:px-8 bg-gray-900 text-white">
-    <div class="container bg-gray-900 bg-opacity-40 backdrop-blur-md rounded-2xl shadow-lg max-w-md w-full p-8 flex flex-col items-center">
-        <h2 class="text-2xl font-semibold text-center mb-6 text-purple-400">Ingresá el número de cuenta</h2>
-        <form method="post" class="w-full flex flex-col gap-4">
-            <input type="text" name="cuenta" required placeholder="Número de cuenta"
-                class="w-full border rounded px-4 py-3 text-black text-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-gray-400" />
-            <button type="submit"
-                class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg font-semibold transition-colors">Obtener código</button>
+<body class="min-h-screen flex items-center justify-center">
+    <div class="bg-black bg-opacity-70 rounded-xl shadow-lg p-8 w-full max-w-md mx-2">
+        <h1 class="text-2xl md:text-3xl font-bold mb-6 text-center">Entrega de Código</h1>
+        <form method="POST" class="flex flex-col gap-4">
+            {% csrf_token %}
+            <label class="block">
+                <span class="text-sm font-semibold">Código:</span>
+                <input type="text" name="codigo" required class="mt-1 block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ingresa tu código">
+            </label>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-md transition-colors duration-200">
+                Entregar
+            </button>
         </form>
         {% if mensaje %}
-            <p class="mensaje text-center mt-4 text-base text-yellow-300">{{ mensaje }}</p>
+            <div class="mt-4 text-center text-sm text-green-400">
+                {{ mensaje }}
+            </div>
         {% endif %}
-        <a class="volver block text-center mt-6 text-purple-400 hover:underline text-base" href="/home">Volver al inicio</a>
     </div>
 </body>
 </html>
