@@ -75,6 +75,9 @@
             width: 100% !important;
         }
     }
+    /* --- FIN estilos mobile --- */
+    /* Elimino reglas que ocultaban el ícono nativo de input date */
+    /* --- FIN reglas input date --- */
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-start px-4 sm:px-8">
@@ -102,31 +105,45 @@
                 <h3 class="text-lg font-normal mb-4 section-title">Filtrar historial</h3>
                 <form method="get" action="#historial" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-4 w-full">
                     <div class="flex flex-col gap-4 w-full">
-                        <div class="w-full">
-                            <label class="block text-base sm:text-sm font-medium">Usuario:</label>
-                            <select name="usuario_filtro" class="w-full border rounded px-4 py-3 sm:px-2 sm:py-1 text-black text-lg sm:text-base">
-                                <option value="">Todos</option>
-                                {% for user in usuarios_historial %}
-                                <option value="{{ user }}" {% if request.args.get('usuario_filtro') == user %}selected{% endif %}>{{ user }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="w-full relative mb-4">
+                            <label class="block text-base sm:text-sm font-medium mb-1">Usuario:</label>
+                            <div class="relative">
+                                <select name="usuario_filtro" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
+                                    <option value="">Todos</option>
+                                    {% for user in usuarios_historial %}
+                                    <option value="{{ user }}" {% if request.args.get('usuario_filtro') == user %}selected{% endif %}>{{ user }}</option>
+                                    {% endfor %}
+                                </select>
+                                <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
+                                    <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                </span>
+                            </div>
                         </div>
-                        <div class="w-full">
-                            <label class="block text-base sm:text-sm font-medium">Cuenta:</label>
-                            <select name="cuenta_filtro" class="w-full border rounded px-4 py-3 sm:px-2 sm:py-1 text-black text-lg sm:text-base">
-                                <option value="">Todas</option>
-                                {% for cta in cuentas_historial %}
-                                <option value="{{ cta }}" {% if request.args.get('cuenta_filtro') == cta %}selected{% endif %}>{{ cta }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="w-full relative mb-4">
+                            <label class="block text-base sm:text-sm font-medium mb-1">Cuenta:</label>
+                            <div class="relative">
+                                <select name="cuenta_filtro" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
+                                    <option value="">Todas</option>
+                                    {% for cta in cuentas_historial %}
+                                    <option value="{{ cta }}" {% if request.args.get('cuenta_filtro') == cta %}selected{% endif %}>{{ cta }}</option>
+                                    {% endfor %}
+                                </select>
+                                <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
+                                    <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                </span>
+                            </div>
                         </div>
-                        <div class="w-full">
-                            <label class="block text-base sm:text-sm font-medium">Desde:</label>
-                            <input type="date" name="fecha_inicio" value="{{ request.args.get('fecha_inicio', '') }}" class="w-full border rounded px-4 py-3 sm:px-2 sm:py-1 text-black text-lg sm:text-base">
+                        <div class="w-full relative mb-4">
+                            <label class="block text-base sm:text-sm font-medium mb-1">Desde:</label>
+                            <div class="relative">
+                                <input type="date" name="fecha_inicio" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
+                            </div>
                         </div>
-                        <div class="w-full">
-                            <label class="block text-base sm:text-sm font-medium">Hasta:</label>
-                            <input type="date" name="fecha_fin" value="{{ request.args.get('fecha_fin', '') }}" class="w-full border rounded px-4 py-3 sm:px-2 sm:py-1 text-black text-lg sm:text-base">
+                        <div class="w-full relative mb-4">
+                            <label class="block text-base sm:text-sm font-medium mb-1">Hasta:</label>
+                            <div class="relative">
+                                <input type="date" name="fecha_fin" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
+                            </div>
                         </div>
                         <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Filtrar</button>
                         <a href="/admin#historial" class="bg-gray-300 text-black px-4 py-3 rounded-full hover:bg-gray-400 w-full text-center text-lg sm:text-base flex items-center justify-center">Quitar filtros</a>
@@ -186,10 +203,19 @@
                 <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
                     <input type="text" name="nuevo_usuario" placeholder="Nombre de usuario" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="password" name="nueva_contraseña" placeholder="Contraseña" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
-                    <select name="rol" placeholder="Cliente" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
-                        <option value="cliente">Cliente</option>
-                        <option value="admin">Admin</option>
-                    </select>
+                    <!-- Dropdown para crear nuevo usuario -->
+                    <div class="w-full relative mb-4">
+                        <label class="block text-base sm:text-sm font-medium mb-1">Rol:</label>
+                        <div class="relative">
+                            <select name="rol" placeholder="Cliente" required class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none pr-8" style="height: 40px; min-width: 120px;">
+                                <option value="cliente">Cliente</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
+                                <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                            </span>
+                        </div>
+                    </div>
                     <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Crear usuario</button>
                 </form>
                 {% if mensaje_usuario %}

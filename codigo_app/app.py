@@ -187,9 +187,10 @@ def admin():
             nuevo_usuario = request.form['nuevo_usuario']
             nueva_contraseña = request.form['nueva_contraseña']
             rol = request.form.get('rol', 'cliente')
+            hashed_password = generate_password_hash(nueva_contraseña)
             try:
                 c.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, '', 1)",
-                        (nuevo_usuario, nueva_contraseña, rol))
+                        (nuevo_usuario, hashed_password, rol))
                 mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente"
             except sqlite3.IntegrityError:
                 mensaje_usuario = f"⚠️ El usuario '{nuevo_usuario}' ya existe"
