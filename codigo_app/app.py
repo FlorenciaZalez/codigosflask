@@ -7,6 +7,9 @@ import smtplib
 from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, String, Text, DateTime, func, Boolean
+
 load_dotenv()
 BASE_URL = os.getenv("BASE_URL", "http://localhost:5003")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
@@ -14,7 +17,42 @@ EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'clave_super_segura'
-DB_PATH = "db/codigos.db"
+
+# Configuración de SQLAlchemy
+DB_URL = os.getenv('DATABASE_URL', 'sqlite:///db/codigos.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# Modelos
+class Usuario(db.Model):
+    __tablename__ = 'usuarios'
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String, unique=True, nullable=False)
+    contraseña = Column(String, nullable=False)
+    rol = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    verificado = Column(Boolean, default=False)
+
+class Codigo(db.Model):
+    __tablename__ = 'codigos'
+    id = Column(Integer, primary_key=True)
+    cuenta = Column(String, nullable=False)
+    codigo = Column(String, nullable=False)
+
+class Historial(db.Model):
+    __tablename__ = 'historial'
+    id = Column(Integer, primary_key=True)
+    usuario = Column(String, nullable=False)
+    cuenta = Column(String, nullable=False)
+    codigo = Column(String, nullable=False)
+    fecha = Column(DateTime, default=func.now())
+
+class CodigoCliente(db.Model):
+    __tablename__ = 'codigos_cliente'
+    id = Column(Integer, primary_key=True)
+    codigo_cliente = Column(String, unique=True, nullable=False)
+    usado = Column(Boolean, default=False)
 
 # Crear la base si no existe
 os.makedirs("db", exist_ok=True)
@@ -73,20 +111,17 @@ def login():
     if request.method == 'POST':
         nombre_o_email = request.form['usuario']
         contraseña = request.form['contraseña']
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            # Permitir login por nombre o email
-            c.execute("SELECT * FROM usuarios WHERE nombre = ? OR email = ?", (nombre_o_email, nombre_o_email))
-            user = c.fetchone()
-            if user and len(user) > 5 and user[5] == 0:
-                return "⚠️ Tu cuenta aún no fue verificada. Por favor revisá tu correo para activarla."
-            if user and check_password_hash(user[2], contraseña):
-                session['usuario'] = user[1]
-                session['rol'] = user[3]
-                return redirect(url_for('home'))
-            else:
-                mensaje = "❌ Usuario o contraseña incorrectos"
-                return render_template('login.html', mensaje=mensaje)
+        # Buscar usuario por nombre o email usando SQLAlchemy
+        user = Usuario.query.filter((Usuario.nombre == nombre_o_email) | (Usuario.email == nombre_o_email)).first()
+        if user and not user.verificado:
+            return "⚠️ Tu cuenta aún no fue verificada. Por favor revisá tu correo para activarla."
+        if user and check_password_hash(user.contraseña, contraseña):
+            session['usuario'] = user.nombre
+            session['rol'] = user.rol
+            return redirect(url_for('home'))
+        else:
+            mensaje = "❌ Usuario o contraseña incorrectos"
+            return render_template('login.html', mensaje=mensaje)
     return render_template('login.html')
 
 @app.route('/logout')
@@ -108,51 +143,29 @@ def entregar_codigo():
     mensaje = ""
     if request.method == 'POST':
         cuenta = request.form['cuenta']
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            from datetime import datetime, timedelta
-
-            # Restricción 1: máximo 10 códigos por día
-            hoy = datetime.now().strftime('%Y-%m-%d')
-            c.execute("""
-                SELECT COUNT(*) FROM historial
-                WHERE usuario = ? AND DATE(fecha) = ?
-            """, (session['usuario'], hoy))
-            codigos_hoy = c.fetchone()[0]
-            if codigos_hoy >= 10:
-                mensaje = "⚠️ Límite diario alcanzado: no podés pedir más de 10 códigos hoy."
-                return render_template("entregar_codigo.html", mensaje=mensaje)
-
-            # Restricción 2: esperar 5 días para volver a pedir de la misma cuenta
-            cinco_dias_atras = datetime.now() - timedelta(days=5)
-            c.execute("""
-                SELECT MAX(fecha) FROM historial
-                WHERE usuario = ? AND cuenta = ?
-            """, (session['usuario'], cuenta))
-            if (ultima_entrega := c.fetchone()[0]):
-                ultima_fecha = datetime.strptime(ultima_entrega, '%Y-%m-%d %H:%M:%S')
-                if ultima_fecha > cinco_dias_atras:
-                    dias_restantes = (ultima_fecha + timedelta(days=5) - datetime.now()).days + 1
-                    mensaje = f"⚠️ Debés esperar {dias_restantes} día(s) para volver a pedir un código de esta cuenta."
-                    return render_template("entregar_codigo.html", mensaje=mensaje)
-
-            # Buscar primer código disponible
-            # Si se desea filtrar por estado, asegurarse de que la columna 'estado' exista en la tabla 'codigos'.
-            # c.execute("SELECT id, codigo FROM codigos WHERE cuenta = ? AND estado = 'disponible' LIMIT 1", (cuenta,))
-            c.execute("SELECT id, codigo FROM codigos WHERE cuenta = ? LIMIT 1", (cuenta,))
-            if row := c.fetchone():
-                codigo_id, codigo = row
-                # Eliminar el código entregado
-                c.execute("DELETE FROM codigos WHERE id = ?", (codigo_id,))
-                # Guardar en historial
-                c.execute("""
-                    INSERT INTO historial (usuario, cuenta, codigo)
-                    VALUES (?, ?, ?)
-                """, (session['usuario'], cuenta, codigo))
-                mensaje = f"✅ Tu código es: {codigo}"
-            else:
-                mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
-
+        from datetime import datetime, timedelta
+        hoy = datetime.now().date()
+        codigos_hoy = Historial.query.filter_by(usuario=session['usuario']).filter(db.func.date(Historial.fecha) == hoy).count()
+        if codigos_hoy >= 10:
+            mensaje = "⚠️ Límite diario alcanzado: no podés pedir más de 10 códigos hoy."
+            return render_template("entregar_codigo.html", mensaje=mensaje)
+        cinco_dias_atras = datetime.now() - timedelta(days=5)
+        ultima = Historial.query.filter_by(usuario=session['usuario'], cuenta=cuenta).order_by(Historial.fecha.desc()).first()
+        if ultima and ultima.fecha > cinco_dias_atras:
+            dias_restantes = (ultima.fecha + timedelta(days=5) - datetime.now()).days + 1
+            mensaje = f"⚠️ Debés esperar {dias_restantes} día(s) para volver a pedir un código de esta cuenta."
+            return render_template("entregar_codigo.html", mensaje=mensaje)
+        row = Codigo.query.filter_by(cuenta=cuenta).first()
+        if row:
+            codigo_id = row.id
+            codigo = row.codigo
+            db.session.delete(row)
+            nuevo_historial = Historial(usuario=session['usuario'], cuenta=cuenta, codigo=codigo)
+            db.session.add(nuevo_historial)
+            db.session.commit()
+            mensaje = f"✅ Tu código es: {codigo}"
+        else:
+            mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
     return render_template("entregar_codigo.html", mensaje=mensaje)
 
 @app.route('/admin', methods=['GET', 'POST'])
@@ -165,125 +178,116 @@ def admin():
     cuentas_historial = []
     mensaje_admin = ""
 
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        # Obtener email actual del admin
-        c.execute("SELECT email FROM usuarios WHERE nombre = 'admin'")
-        admin_email_row = c.fetchone()
-        admin_email = admin_email_row[0] if admin_email_row else ''
+    # Obtener email actual del admin
+    admin_user = Usuario.query.filter_by(nombre='admin').first()
+    admin_email = admin_user.email if admin_user else ''
 
-        # Alta de códigos
-        if 'cuenta' in request.form and 'codigo' in request.form:
-            cuenta = request.form['cuenta']
-            codigo = request.form['codigo']
-            # Verificar si ya existe ese código para esa cuenta antes de insertar
-            c.execute("SELECT 1 FROM codigos WHERE cuenta = ? AND codigo = ?", (cuenta, codigo))
-            if not c.fetchone():
-                c.execute("INSERT INTO codigos (cuenta, codigo) VALUES (?, ?)", (cuenta, codigo))
-            mensaje_codigo = "✅ Código cargado correctamente"
+    # Alta de códigos
+    if 'cuenta' in request.form and 'codigo' in request.form:
+        cuenta = request.form['cuenta']
+        codigo = request.form['codigo']
+        existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
+        if not existe:
+            nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
+            db.session.add(nuevo_codigo)
+            db.session.commit()
+        mensaje_codigo = "✅ Código cargado correctamente"
 
-        # Alta de usuarios
-        if 'nuevo_usuario' in request.form and 'nueva_contraseña' in request.form:
-            nuevo_usuario = request.form['nuevo_usuario']
-            nueva_contraseña = request.form['nueva_contraseña']
-            rol = request.form.get('rol', 'cliente')
-            hashed_password = generate_password_hash(nueva_contraseña)
+    # Alta de usuarios
+    if 'nuevo_usuario' in request.form and 'nueva_contraseña' in request.form:
+        nuevo_usuario = request.form['nuevo_usuario']
+        nueva_contraseña = request.form['nueva_contraseña']
+        rol = request.form.get('rol', 'cliente')
+        hashed_password = generate_password_hash(nueva_contraseña)
+        try:
+            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email='', verificado=True)
+            db.session.add(nuevo)
+            db.session.commit()
+            mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente"
+        except Exception:
+            db.session.rollback()
+            mensaje_usuario = f"⚠️ El usuario '{nuevo_usuario}' ya existe"
+
+    # Procesar archivo CSV de códigos de juego si se envía
+    if 'archivo_csv' in request.files:
+        archivo = request.files['archivo_csv']
+        if archivo.filename.endswith('.csv'):
             try:
-                c.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, '', 1)",
-                        (nuevo_usuario, hashed_password, rol))
-                mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente"
-            except sqlite3.IntegrityError:
-                mensaje_usuario = f"⚠️ El usuario '{nuevo_usuario}' ya existe"
+                import io
+                stream = io.TextIOWrapper(archivo.stream, encoding='utf-8')
+                reader = csv.DictReader(stream)
+                contador = 0
+                for fila in reader:
+                    cuenta = fila.get("cuenta", "").strip()
+                    codigo = fila.get("codigo", "").strip()
+                    if cuenta and codigo:
+                        existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
+                        if not existe:
+                            nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
+                            db.session.add(nuevo_codigo)
+                            contador += 1
+                db.session.commit()
+                mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos."
+            except Exception as e:
+                db.session.rollback()
+                mensaje_csv = f"⚠️ Error al procesar el archivo: {e}"
+        else:
+            mensaje_csv = "⚠️ El archivo debe ser .csv"
 
+    # Procesar archivo CSV de códigos de cliente si se envía
+    if 'archivo_codigos_cliente' in request.files:
+        archivo = request.files['archivo_codigos_cliente']
+        if archivo.filename.endswith('.csv'):
+            try:
+                contenido = archivo.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(contenido)
+                for fila in reader:
+                    codigo_cliente = (fila.get('codigo_cliente') or fila.get('codigo') or '').strip()
+                    existe = CodigoCliente.query.filter_by(codigo_cliente=codigo_cliente).first()
+                    if codigo_cliente and not existe:
+                        nuevo_codigo_cliente = CodigoCliente(codigo_cliente=codigo_cliente, usado=False)
+                        db.session.add(nuevo_codigo_cliente)
+                db.session.commit()
+                mensaje_csv += "\n✅ Códigos de cliente cargados correctamente"
+            except Exception as e:
+                db.session.rollback()
+                mensaje_csv += f"\n⚠️ Error al procesar los códigos de cliente: {e}"
+        else:
+            mensaje_csv += "\n⚠️ El archivo de códigos de cliente debe ser .csv"
 
-        # Procesar archivo CSV de códigos de juego si se envía
-        print("🟡 Verificando si hay archivo_csv en request.files:", request.files)
-        if 'archivo_csv' in request.files:
-            archivo = request.files['archivo_csv']
-            if archivo.filename.endswith('.csv'):
-                print("🟢 Archivo CSV recibido:", archivo.filename)
-                try:
-                    import io
-                    stream = io.TextIOWrapper(archivo.stream, encoding='utf-8')
-                    reader = csv.DictReader(stream)
-                    print("CSV campos:", reader.fieldnames)
-                    contador = 0
-                    for fila in reader:
-                        print("Fila leída:", fila)
-                        cuenta = fila.get("cuenta", "").strip()
-                        codigo = fila.get("codigo", "").strip()
-                        if cuenta and codigo:
-                            c.execute("SELECT 1 FROM codigos WHERE cuenta = ? AND codigo = ?", (cuenta, codigo))
-                            if not c.fetchone():
-                                c.execute("INSERT INTO codigos (cuenta, codigo) VALUES (?, ?)", (cuenta, codigo))
-                                contador += 1
-                    mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos."
-                except Exception as e:
-                    mensaje_csv = f"⚠️ Error al procesar el archivo: {e}"
-            else:
-                mensaje_csv = "⚠️ El archivo debe ser .csv"
+    # Mostrar códigos
+    codigos = Codigo.query.order_by(Codigo.cuenta).all()
 
+    # Filtros para historial
+    usuario_filtro = request.args.get('usuario_filtro', '').strip()
+    cuenta_filtro = request.args.get('cuenta_filtro', '').strip()
+    fecha_inicio = request.args.get('fecha_inicio', '').strip()
+    fecha_fin = request.args.get('fecha_fin', '').strip()
 
-        # Procesar archivo CSV de códigos de cliente si se envía
-        if 'archivo_codigos_cliente' in request.files:
-            archivo = request.files['archivo_codigos_cliente']
-            if archivo.filename.endswith('.csv'):
-                try:
-                    contenido = archivo.read().decode('utf-8').splitlines()
-                    reader = csv.DictReader(contenido)
-                    for fila in reader:
-                        codigo_cliente = fila.get('codigo_cliente') or fila.get('codigo') or ''
-                        if (codigo_cliente := codigo_cliente.strip()):
-                            c.execute("SELECT 1 FROM codigos_cliente WHERE codigo_cliente = ?", (codigo_cliente,))
-                            if not c.fetchone():
-                                c.execute("INSERT INTO codigos_cliente (codigo_cliente, usado) VALUES (?, 0)", (codigo_cliente,))
-                    mensaje_csv += "\n✅ Códigos de cliente cargados correctamente"
-                except Exception as e:
-                    mensaje_csv += f"\n⚠️ Error al procesar los códigos de cliente: {e}"
-            else:
-                mensaje_csv += "\n⚠️ El archivo de códigos de cliente debe ser .csv"
+    # Obtener todos los usuarios únicos y cuentas únicas del historial SIEMPRE
+    usuarios_historial = [u[0] for u in db.session.query(Historial.usuario).distinct().order_by(Historial.usuario).all()]
+    cuentas_historial = [c[0] for c in db.session.query(Historial.cuenta).distinct().order_by(Historial.cuenta).all()]
 
-        # Mostrar códigos
-        c.execute("SELECT cuenta, codigo FROM codigos ORDER BY cuenta")
-        codigos = c.fetchall()
+    # Solo buscar si hay algún filtro aplicado
+    if usuario_filtro or cuenta_filtro or fecha_inicio or fecha_fin:
+        query = Historial.query
+        if usuario_filtro:
+            query = query.filter_by(usuario=usuario_filtro)
+        if cuenta_filtro:
+            query = query.filter_by(cuenta=cuenta_filtro)
+        if fecha_inicio:
+            query = query.filter(Historial.fecha >= fecha_inicio)
+        if fecha_fin:
+            query = query.filter(Historial.fecha <= fecha_fin)
+        historial = query.order_by(Historial.fecha.desc()).limit(100).all()
+    else:
+        historial = []
 
-        # Filtros para historial
-        usuario_filtro = request.args.get('usuario_filtro', '').strip()
-        cuenta_filtro = request.args.get('cuenta_filtro', '').strip()
-        fecha_inicio = request.args.get('fecha_inicio', '').strip()
-        fecha_fin = request.args.get('fecha_fin', '').strip()
-
-        # Obtener todos los usuarios únicos y cuentas únicas del historial SIEMPRE
-        c.execute("SELECT DISTINCT usuario FROM historial ORDER BY usuario")
-        usuarios_historial = [fila[0] for fila in c.fetchall()]
-        c.execute("SELECT DISTINCT cuenta FROM historial ORDER BY cuenta")
-        cuentas_historial = [fila[0] for fila in c.fetchall()]
-
-        # Solo buscar si hay algún filtro aplicado
-        if usuario_filtro or cuenta_filtro or fecha_inicio or fecha_fin:
-            query = "SELECT usuario, cuenta, codigo, fecha FROM historial WHERE 1=1"
-            params = []
-            if usuario_filtro:
-                query += " AND usuario = ?"
-                params.append(usuario_filtro)
-            if cuenta_filtro:
-                query += " AND cuenta = ?"
-                params.append(cuenta_filtro)
-            if fecha_inicio:
-                query += " AND DATE(fecha) >= DATE(?)"
-                params.append(fecha_inicio)
-            if fecha_fin:
-                query += " AND DATE(fecha) <= DATE(?)"
-                params.append(fecha_fin)
-            query += " ORDER BY fecha DESC LIMIT 100"
-            c.execute(query, tuple(params))
-            historial = c.fetchall()
-
-        # 🔴 BORRAR TODOS LOS CÓDIGOS (USO TEMPORAL)
-        if request.args.get('borrar_codigos') == '1':
-            c.execute("DELETE FROM codigos")
-            conn.commit()
-            mensaje_codigo = "🗑️ Todos los códigos fueron eliminados"
+    # 🔴 BORRAR TODOS LOS CÓDIGOS (USO TEMPORAL)
+    if request.args.get('borrar_codigos') == '1':
+        Codigo.query.delete()
+        db.session.commit()
+        mensaje_codigo = "🗑️ Todos los códigos fueron eliminados"
 
     # --- CAMBIO DE CREDENCIALES DE ADMIN ---
     if request.method == 'POST' and 'cambiar_admin' in request.form:
@@ -293,18 +297,14 @@ def admin():
         if nueva_contraseña and nueva_contraseña != confirmar_contraseña:
             mensaje_admin = "⚠️ Las contraseñas no coinciden."
         else:
-            with sqlite3.connect(DB_PATH) as conn:
-                c = conn.cursor()
-                # Forzar commit para asegurar que el cambio se guarde
+            if admin_user:
                 if nuevo_email:
-                    c.execute("UPDATE usuarios SET email = ? WHERE nombre = 'admin'", (nuevo_email,))
-                    conn.commit()
+                    admin_user.email = nuevo_email
                     mensaje_admin += "✅ Email actualizado. "
                 if nueva_contraseña:
-                    hashed = generate_password_hash(nueva_contraseña)
-                    c.execute("UPDATE usuarios SET contraseña = ? WHERE nombre = 'admin'", (hashed,))
-                    conn.commit()
+                    admin_user.contraseña = generate_password_hash(nueva_contraseña)
                     mensaje_admin += "✅ Contraseña actualizada. "
+                db.session.commit()
             if not nuevo_email and not nueva_contraseña:
                 mensaje_admin = "⚠️ Debes ingresar un nuevo email o contraseña."
 
@@ -323,28 +323,24 @@ def recuperar_clave():
     mensaje = ""
     if request.method == 'POST':
         email = request.form['email']
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-            c.execute("SELECT nombre FROM usuarios WHERE email = ?", (email,))
-            if (resultado := c.fetchone()):
-                nombre = resultado[0]
-                reset_link = f"{BASE_URL}/resetear-clave/{nombre}"
-                try:
-                    msg = EmailMessage()
-                    msg.set_content(f"Hola {nombre},\n\nPara cambiar tu contraseña hacé clic en el siguiente enlace:\n{reset_link}")
-                    msg["Subject"] = "Recuperación de contraseña"
-                    msg["From"] = EMAIL_ADDRESS
-                    msg["To"] = email
-
-                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-                        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                        smtp.send_message(msg)
-                    mensaje = "📩 Se envió un correo con las instrucciones para recuperar la contraseña."
-                except Exception as e:
-                    mensaje = f"⚠️ No se pudo enviar el correo: {e}"
-            else:
-                mensaje = "⚠️ No se encontró ninguna cuenta con ese correo."
-
+        user = Usuario.query.filter_by(email=email).first()
+        if user:
+            nombre = user.nombre
+            reset_link = f"{BASE_URL}/resetear-clave/{nombre}"
+            try:
+                msg = EmailMessage()
+                msg.set_content(f"Hola {nombre},\n\nPara cambiar tu contraseña hacé clic en el siguiente enlace:\n{reset_link}")
+                msg["Subject"] = "Recuperación de contraseña"
+                msg["From"] = EMAIL_ADDRESS
+                msg["To"] = email
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                    smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+                    smtp.send_message(msg)
+                mensaje = "📩 Se envió un correo con las instrucciones para recuperar la contraseña."
+            except Exception as e:
+                mensaje = f"⚠️ No se pudo enviar el correo: {e}"
+        else:
+            mensaje = "⚠️ No se encontró ninguna cuenta con ese correo."
     return render_template("recuperar_clave.html", mensaje=mensaje)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -365,45 +361,35 @@ def register():
             mensaje = "⚠️ Debés ingresar un correo electrónico válido."
             return render_template("register.html", mensaje=mensaje)
 
-        with sqlite3.connect(DB_PATH) as conn:
-            c = conn.cursor()
-
-            # Asegurarse de que la columna 'verificado' exista
-            c.execute("PRAGMA table_info(usuarios)")
-            columns = [col[1] for col in c.fetchall()]
-            if 'verificado' not in columns:
-                c.execute("ALTER TABLE usuarios ADD COLUMN verificado INTEGER DEFAULT 0")
-
-            # Verificar que el código exista y no haya sido usado
-            c.execute("SELECT * FROM codigos_cliente WHERE codigo_cliente = ? AND usado = 0", (codigo_cliente,))
-            codigo_valido = c.fetchone()
-
-            if not codigo_valido:
-                mensaje = "⚠️ Código de cliente inválido o ya utilizado."
-            else:
+        # Verificar que el código exista y no haya sido usado
+        codigo_valido = CodigoCliente.query.filter_by(codigo_cliente=codigo_cliente, usado=False).first()
+        if not codigo_valido:
+            mensaje = "⚠️ Código de cliente inválido o ya utilizado."
+        else:
+            try:
+                hashed_password = generate_password_hash(nueva_contraseña)
+                nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol='cliente', email=email, verificado=False)
+                db.session.add(nuevo)
+                # Enviar correo de verificación
+                token_link = f"{BASE_URL}/verificar-email/{nuevo_usuario}"
+                msg = EmailMessage()
+                msg.set_content(f"Hola {nuevo_usuario},\n\nPor favor verificá tu cuenta haciendo clic en el siguiente enlace:\n{token_link}")
+                msg["Subject"] = "Verificá tu cuenta"
+                msg["From"] = EMAIL_ADDRESS
+                msg["To"] = email
                 try:
-                    hashed_password = generate_password_hash(nueva_contraseña)
-                    c.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, ?, 0)",
-                            (nuevo_usuario, hashed_password, 'cliente', email))
-                    # Enviar correo de verificación
-                    token_link = f"{BASE_URL}/verificar-email/{nuevo_usuario}"
-                    msg = EmailMessage()
-                    msg.set_content(f"Hola {nuevo_usuario},\n\nPor favor verificá tu cuenta haciendo clic en el siguiente enlace:\n{token_link}")
-                    msg["Subject"] = "Verificá tu cuenta"
-                    msg["From"] = EMAIL_ADDRESS
-                    msg["To"] = email
-                    try:
-                        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-                            smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                            smtp.send_message(msg)
-                    except Exception as e:
-                        print(f"Error enviando correo de verificación: {e}")
-                    c.execute("UPDATE codigos_cliente SET usado = 1 WHERE codigo_cliente = ?", (codigo_cliente,))
-                    mensaje = "✅ Cuenta creada con éxito. Iniciá sesión."
-                except sqlite3.IntegrityError:
-                    mensaje = "⚠️ Ese usuario ya existe."
+                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+                        smtp.send_message(msg)
+                except Exception as e:
+                    print(f"Error enviando correo de verificación: {e}")
+                codigo_valido.usado = True
+                db.session.commit()
+                mensaje = "✅ Cuenta creada con éxito. Iniciá sesión."
+            except Exception:
+                db.session.rollback()
+                mensaje = "⚠️ Ese usuario ya existe."
         return render_template("register.html", mensaje=mensaje)
-
     return render_template("register.html")
 
 
@@ -414,16 +400,14 @@ def resetear_clave(usuario):
     if request.method == 'POST':
         nueva_contraseña = request.form['nueva_contraseña']
         confirmar_contraseña = request.form['confirmar_contraseña']
-
         if nueva_contraseña != confirmar_contraseña:
             mensaje = "⚠️ Las contraseñas no coinciden."
         else:
-            with sqlite3.connect(DB_PATH) as conn:
-                c = conn.cursor()
-                hashed_password = generate_password_hash(nueva_contraseña)
-                c.execute("UPDATE usuarios SET contraseña = ? WHERE nombre = ?", (hashed_password, usuario))
+            user = Usuario.query.filter_by(nombre=usuario).first()
+            if user:
+                user.contraseña = generate_password_hash(nueva_contraseña)
+                db.session.commit()
                 mensaje = "✅ Contraseña actualizada correctamente. Podés iniciar sesión."
-
     return render_template("resetear_clave.html", mensaje=mensaje, usuario=usuario)
 
 
@@ -436,46 +420,43 @@ def gestionar_usuarios():
 
     mensaje = ""
 
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-
-        # Cambiar rol de usuario
-        if request.method == 'POST' and 'cambiar_rol_usuario' in request.form:
-            nombre = request.form['cambiar_rol_usuario']
-            nuevo_rol = request.form['nuevo_rol']
-            c.execute("UPDATE usuarios SET rol = ? WHERE nombre = ?", (nuevo_rol, nombre))
+    # Cambiar rol de usuario
+    if request.method == 'POST' and 'cambiar_rol_usuario' in request.form:
+        nombre = request.form['cambiar_rol_usuario']
+        nuevo_rol = request.form['nuevo_rol']
+        user = Usuario.query.filter_by(nombre=nombre).first()
+        if user:
+            user.rol = nuevo_rol
+            db.session.commit()
             mensaje = f"✅ Rol de {nombre} actualizado a {nuevo_rol}."
 
-        # Eliminar usuario
-        if request.method == 'POST' and 'eliminar_usuario' in request.form:
-            nombre = request.form['eliminar_usuario']
-            c.execute("DELETE FROM usuarios WHERE nombre = ?", (nombre,))
+    # Eliminar usuario
+    if request.method == 'POST' and 'eliminar_usuario' in request.form:
+        nombre = request.form['eliminar_usuario']
+        user = Usuario.query.filter_by(nombre=nombre).first()
+        if user:
+            db.session.delete(user)
+            db.session.commit()
             mensaje = f"🗑️ Usuario {nombre} eliminado correctamente."
 
-        # Obtener lista de usuarios
-        c.execute("SELECT nombre, rol, email, verificado FROM usuarios WHERE nombre != 'admin' ORDER BY nombre")
-        usuarios = c.fetchall()
+    # Obtener lista de usuarios
+    usuarios = Usuario.query.filter(Usuario.nombre != 'admin').order_by(Usuario.nombre).all()
 
-        # Obtener últimos accesos (última actividad registrada en historial)
-        c.execute("""
-            SELECT usuario, MAX(fecha) as ultimo_acceso
-            FROM historial
-            GROUP BY usuario
-        """)
-        resultados = c.fetchall()
-        accesos = {}
-        for fila in resultados:
-            if fila and len(fila) == 2 and fila[0] and fila[1]:
-                accesos[fila[0]] = fila[1]
+    # Obtener últimos accesos (última actividad registrada en historial)
+    accesos = {}
+    for h in db.session.query(Historial.usuario, db.func.max(Historial.fecha)).group_by(Historial.usuario).all():
+        if h[0] and h[1]:
+            accesos[h[0]] = h[1]
 
-    return render_template("gestionar_usuarios.html", usuarios=usuarios, mensaje=mensaje, accesos=accesos)
+    return render_template("gestionar_usuarios.html", usuarios=[(u.nombre, u.rol, u.email, u.verificado) for u in usuarios], mensaje=mensaje, accesos=accesos)
 
 # Ruta para verificar email
 @app.route('/verificar-email/<usuario>')
 def verificar_email(usuario):
-    with sqlite3.connect(DB_PATH) as conn:
-        c = conn.cursor()
-        c.execute("UPDATE usuarios SET verificado = 1 WHERE nombre = ?", (usuario,))
+    user = Usuario.query.filter_by(nombre=usuario).first()
+    if user:
+        user.verificado = True
+        db.session.commit()
     return render_template("verificar_email.html")
 
 if __name__ == "__main__":
