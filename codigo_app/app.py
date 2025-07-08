@@ -55,50 +55,15 @@ class CodigoCliente(db.Model):
 
 # Crear la base si no existe
 os.makedirs("db", exist_ok=True)
-with db.engine.connect() as connection:
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT UNIQUE,
-            contraseña TEXT,
-            rol TEXT,
-            email TEXT,
-            verificado INTEGER DEFAULT 0
-        )
-    """)
-    # Si se desea filtrar por estado, agregar la columna 'estado' a la tabla codigos:
-    # c.execute("ALTER TABLE codigos ADD COLUMN estado TEXT DEFAULT 'disponible'")
-    # Por defecto, la tabla no tiene la columna 'estado'. Si se requiere, agregarla.
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS codigos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cuenta TEXT,
-            codigo TEXT
-            -- estado TEXT DEFAULT 'disponible'  -- Descomentar si se quiere usar filtros por estado
-        )
-    """)
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS historial (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario TEXT,
-            cuenta TEXT,
-            codigo TEXT,
-            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS codigos_cliente (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo_cliente TEXT UNIQUE,
-            usado INTEGER DEFAULT 0
-        )
-    """)
-    from werkzeug.security import generate_password_hash
-
-    hashed = generate_password_hash('1234')
-    connection.execute("SELECT * FROM usuarios WHERE nombre = 'admin'")
-    if not connection.fetchone():
-        connection.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, ?, ?)", ('admin', hashed, 'admin', 'admin@mail.com', 1))
+# Eliminar bloque de creación manual de tablas y admin con SQL
+# Crear tablas y usuario admin por defecto usando SQLAlchemy y contexto Flask
+with app.app_context():
+    db.create_all()
+    if not Usuario.query.filter_by(nombre='admin').first():
+        hashed = generate_password_hash('1234')
+        admin = Usuario(nombre='admin', contraseña=hashed, rol='admin', email='admin@mail.com', verificado=True)
+        db.session.add(admin)
+        db.session.commit()
 
 @app.route('/')
 def home_redirect():
