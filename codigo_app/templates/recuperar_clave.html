@@ -3,84 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <title>Recuperar Contraseña</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      @media (max-width: 640px) {
         body {
-            background-color: #0f172a;
-            font-family: 'Inter', sans-serif;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+          background-image: url('{{ url_for('static', filename='assets/fondoOscuro.png') }}') !important;
         }
-        .container {
-            background-color: #1e293b;
-            padding: 2.5rem;
-            border-radius: 1rem;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-        h1 {
-            margin-bottom: 1.5rem;
-            font-size: 1.75rem;
-            color: #c084fc;
-        }
-        input[type="email"] {
-            width: 100%;
-            padding: 0.75rem;
-            margin-bottom: 1.25rem;
-            border: none;
-            border-radius: 0.5rem;
-            background-color: #334155;
-            color: #fff;
-        }
-        input[type="submit"] {
-            width: 100%;
-            padding: 0.75rem;
-            background-color: #8b5cf6;
-            border: none;
-            border-radius: 0.5rem;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 1.125rem;
-        }
-        input[type="submit"]:hover {
-            background-color: #7c3aed;
-        }
-        .mensaje {
-            margin-top: 1rem;
-            font-size: 0.95rem;
-            color: #facc15;
-        }
-        a {
-            display: block;
-            margin-top: 1rem;
-            color: #a78bfa;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
+      }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Recuperar Contraseña</h1>
-        <form method="post">
-            <input type="email" name="email" placeholder="Email registrado" required>
-            <input type="submit" value="Enviar enlace de recuperación">
-        </form>
-
-        {% if mensaje %}
-        <p class="mensaje">{{ mensaje }}</p>
+<body class="flex items-center justify-center min-h-screen bg-gray-900" style="background-image: url('{{ url_for('static', filename='assets/fondoOscuro.png') }}'); background-size: cover; background-position: center;">
+  <div class="flex flex-col items-center w-full max-w-xl gap-6 -mt-12 px-2">
+    <div class="bg-gray-800 bg-opacity-30 backdrop-blur-md p-[32px] sm:p-4 rounded-2xl shadow-lg w-full" style="max-width: 100vw; box-sizing: border-box; margin-left: 24px; margin-right: 24px;">
+      <h2 class="text-3xl font-semibold text-center text-violet-400 mb-6 mt-2 sm:text-2xl">Recuperar Contraseña</h2>
+      <form method="post" class="flex flex-col gap-4 w-full">
+        <label class="block text-white text-sm font-medium">Correo electrónico
+          <input type="email" name="email" required class="mt-1 w-full px-4 py-3 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Ingresá tu email registrado">
+        </label>
+        <input type="submit" value="Enviar enlace de recuperación" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3 px-4 rounded-full text-lg transition-colors duration-200 cursor-pointer">
+      </form>
+      {% if mensaje %}
+        {% if mensaje.startswith('📩') or mensaje.startswith('✅') %}
+          <div class="text-center text-green-500 text-sm mt-2 mb-2">{{ mensaje }}</div>
+        {% else %}
+          <div class="text-center text-red-500 text-sm mt-2 mb-2">{{ mensaje }}</div>
         {% endif %}
-
-        <a href="{{ url_for('login') }}">Volver al login</a>
+      {% endif %}
+      <div class="flex flex-col gap-2 mt-4">
+        <a href="{{ url_for('login') }}" class="text-violet-400 hover:underline font-semibold text-center">Volver al login</a>
+      </div>
     </div>
+  </div>
 </body>
 </html>
