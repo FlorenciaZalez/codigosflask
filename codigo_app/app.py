@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, session, url_for
 import csv
-import sqlite3
 import os
 import requests  # Asegurate de que esté importado al comienzo del archivo
 import smtplib
@@ -56,9 +55,8 @@ class CodigoCliente(db.Model):
 
 # Crear la base si no existe
 os.makedirs("db", exist_ok=True)
-with sqlite3.connect(DB_PATH) as conn:
-    c = conn.cursor()
-    c.execute("""
+with db.engine.connect() as connection:
+    connection.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT UNIQUE,
@@ -71,7 +69,7 @@ with sqlite3.connect(DB_PATH) as conn:
     # Si se desea filtrar por estado, agregar la columna 'estado' a la tabla codigos:
     # c.execute("ALTER TABLE codigos ADD COLUMN estado TEXT DEFAULT 'disponible'")
     # Por defecto, la tabla no tiene la columna 'estado'. Si se requiere, agregarla.
-    c.execute("""
+    connection.execute("""
         CREATE TABLE IF NOT EXISTS codigos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cuenta TEXT,
@@ -79,7 +77,7 @@ with sqlite3.connect(DB_PATH) as conn:
             -- estado TEXT DEFAULT 'disponible'  -- Descomentar si se quiere usar filtros por estado
         )
     """)
-    c.execute("""
+    connection.execute("""
         CREATE TABLE IF NOT EXISTS historial (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario TEXT,
@@ -88,7 +86,7 @@ with sqlite3.connect(DB_PATH) as conn:
             fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    c.execute("""
+    connection.execute("""
         CREATE TABLE IF NOT EXISTS codigos_cliente (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             codigo_cliente TEXT UNIQUE,
@@ -98,9 +96,9 @@ with sqlite3.connect(DB_PATH) as conn:
     from werkzeug.security import generate_password_hash
 
     hashed = generate_password_hash('1234')
-    c.execute("SELECT * FROM usuarios WHERE nombre = 'admin'")
-    if not c.fetchone():
-        c.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, ?, ?)", ('admin', hashed, 'admin', 'admin@mail.com', 1))
+    connection.execute("SELECT * FROM usuarios WHERE nombre = 'admin'")
+    if not connection.fetchone():
+        connection.execute("INSERT INTO usuarios (nombre, contraseña, rol, email, verificado) VALUES (?, ?, ?, ?, ?)", ('admin', hashed, 'admin', 'admin@mail.com', 1))
 
 @app.route('/')
 def home_redirect():
