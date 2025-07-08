@@ -18,7 +18,9 @@ app = Flask(__name__, template_folder='templates')
 app.secret_key = 'clave_super_segura'
 
 # Configuración de SQLAlchemy
-DB_URL = os.getenv('DATABASE_URL', 'sqlite:///db/codigos.db')
+DB_URL = os.getenv('DATABASE_URL')
+if not DB_URL:
+    raise RuntimeError("DATABASE_URL no está configurada. Debes definirla en Render con el string de conexión de PostgreSQL.")
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -53,9 +55,6 @@ class CodigoCliente(db.Model):
     codigo_cliente = Column(String, unique=True, nullable=False)
     usado = Column(Boolean, default=False)
 
-# Crear la base si no existe
-os.makedirs("db", exist_ok=True)
-# Eliminar bloque de creación manual de tablas y admin con SQL
 # Crear tablas y usuario admin por defecto usando SQLAlchemy y contexto Flask
 with app.app_context():
     db.create_all()

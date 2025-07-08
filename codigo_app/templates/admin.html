@@ -223,6 +223,21 @@
             </section>
             <hr class="border-t border-white my-6">
 
+            <!-- CSV de códigos de juegos -->
+            <section class="mb-10">
+                <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de juegos</h3>
+                <form method="post" enctype="multipart/form-data" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
+                    <div class="flex flex-col gap-2 w-full">
+                        <label for="archivo_csv" class="text-base sm:text-sm text-white">Seleccionar archivo CSV</label>
+                        <input type="file" name="archivo_csv" id="archivo_csv" accept=".csv" required class="text-lg sm:text-base text-white bg-gray-800 rounded px-4 py-3 sm:px-2 sm:py-1 border border-gray-600 file:hidden w-full">
+                        <label id="nombre-archivo-1" class="text-base sm:text-sm text-gray-400 truncate">Ningún archivo seleccionado</label>
+                    </div>
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Cargar archivo</button>
+                </form>
+                {% if mensaje_csv %}
+                    <p class="text-sm mt-2 text-indigo-700">{{ mensaje_csv }}</p>
+                {% endif %}
+            </section>
             <!-- CSV de códigos cliente -->
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de cliente</h3>
@@ -245,7 +260,6 @@
                     </ul>
                 {% endif %}
             </section> 
-
             <!-- Cambiar credenciales de admin -->
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Cambiar credenciales de administrador</h3>
