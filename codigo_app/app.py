@@ -71,11 +71,12 @@ def home_redirect():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        nombre = request.form['usuario']
+        nombre_o_email = request.form['usuario']
         contraseña = request.form['contraseña']
         with sqlite3.connect(DB_PATH) as conn:
             c = conn.cursor()
-            c.execute("SELECT * FROM usuarios WHERE nombre = ?", (nombre,))
+            # Permitir login por nombre o email
+            c.execute("SELECT * FROM usuarios WHERE nombre = ? OR email = ?", (nombre_o_email, nombre_o_email))
             user = c.fetchone()
             if user and len(user) > 5 and user[5] == 0:
                 return "⚠️ Tu cuenta aún no fue verificada. Por favor revisá tu correo para activarla."
@@ -162,15 +163,14 @@ def admin():
     historial = []
     usuarios_historial = []
     cuentas_historial = []
-
-    # --- IMPORTAR CÓDIGOS DESDE GOOGLE SHEETS ---
-    # Para importar desde Google Sheets, descomentar el siguiente bloque:
-    # url_csv = "https://docs.google.com/spreadsheets/d/1bHY-StAJI7-QOi7dS3HANMh-Zt5dWuUiMmrWZAEdcOs/export?format=csv"
-    # Reemplazado por el nuevo enlace solicitado:
-    # url_csv = "https://docs.google.com/spreadsheets/d/1NYyGnr0L7zxHjEgHosZSnaJK8TerzcVRJLJwK8Eo9Ic/export?format=csv"
+    mensaje_admin = ""
 
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
+        # Obtener email actual del admin
+        c.execute("SELECT email FROM usuarios WHERE nombre = 'admin'")
+        admin_email_row = c.fetchone()
+        admin_email = admin_email_row[0] if admin_email_row else ''
 
         # Alta de códigos
         if 'cuenta' in request.form and 'codigo' in request.form:
@@ -285,13 +285,38 @@ def admin():
             conn.commit()
             mensaje_codigo = "🗑️ Todos los códigos fueron eliminados"
 
+    # --- CAMBIO DE CREDENCIALES DE ADMIN ---
+    if request.method == 'POST' and 'cambiar_admin' in request.form:
+        nuevo_email = request.form.get('nuevo_email', '').strip()
+        nueva_contraseña = request.form.get('nueva_contraseña', '').strip()
+        confirmar_contraseña = request.form.get('confirmar_contraseña', '').strip()
+        if nueva_contraseña and nueva_contraseña != confirmar_contraseña:
+            mensaje_admin = "⚠️ Las contraseñas no coinciden."
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                c = conn.cursor()
+                # Forzar commit para asegurar que el cambio se guarde
+                if nuevo_email:
+                    c.execute("UPDATE usuarios SET email = ? WHERE nombre = 'admin'", (nuevo_email,))
+                    conn.commit()
+                    mensaje_admin += "✅ Email actualizado. "
+                if nueva_contraseña:
+                    hashed = generate_password_hash(nueva_contraseña)
+                    c.execute("UPDATE usuarios SET contraseña = ? WHERE nombre = 'admin'", (hashed,))
+                    conn.commit()
+                    mensaje_admin += "✅ Contraseña actualizada. "
+            if not nuevo_email and not nueva_contraseña:
+                mensaje_admin = "⚠️ Debes ingresar un nuevo email o contraseña."
+
     return render_template("admin.html",
                         mensaje_codigo=mensaje_codigo,
                         mensaje_usuario=mensaje_usuario,
                         mensaje_csv=mensaje_csv,
                         historial=historial,
                         usuarios_historial=usuarios_historial,
-                        cuentas_historial=cuentas_historial)
+                        cuentas_historial=cuentas_historial,
+                        mensaje_admin=mensaje_admin,
+                        admin_email=admin_email)
 
 @app.route('/recuperar-clave', methods=['GET', 'POST'])
 def recuperar_clave():

@@ -89,7 +89,6 @@
         <!-- NAV CON EFECTO VIDRIO -->
         <nav class="w-full bg-gray-900 bg-opacity-40 backdrop-blur-md text-white py-3 px-4 sm:px-8 flex flex-col sm:flex-row justify-between items-center shadow-lg z-50 rounded-2xl mb-6">
             <div class="flex items-center gap-2 mb-8 sm:mb-0">
-                <img src="https://cdn-icons-png.flaticon.com/512/9187/9187604.png" alt="admin icon" class="w-6 h-6">
                 <span class="font-normal text-base section-title">Panel de Administración</span>
             </div>
             <div class="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
@@ -246,19 +245,31 @@
                     </ul>
                 {% endif %}
             </section> 
+
+            <!-- Cambiar credenciales de admin -->
+            <section class="mb-10">
+                <h3 class="text-lg font-normal mb-4 section-title">Cambiar credenciales de administrador</h3>
+                <div class="mb-2 text-white text-sm">Email actual: <span class="font-semibold text-violet-300">{{ admin_email }}</span></div>
+                <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-4 w-full">
+                    <input type="hidden" name="cambiar_admin" value="1">
+                    <input type="email" name="nuevo_email" class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base" placeholder="Ingresar nuevo mail de administrador">
+                    <input type="password" name="nueva_contraseña" class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base" placeholder="Ingresar nueva contraseña">
+                    <input type="password" name="confirmar_contraseña" class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base" placeholder="Confirmar nueva contraseña">
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Actualizar credenciales</button>
+                </form>
+                {% if mensaje_admin %}
+                  {% if mensaje_admin.startswith('✅') %}
+                    <div class="text-center text-green-500 text-sm mt-2 mb-2">{{ mensaje_admin }}</div>
+                  {% else %}
+                    <div class="text-center text-red-500 text-sm mt-2 mb-2">{{ mensaje_admin }}</div>
+                  {% endif %}
+                {% endif %}
+            </section>
         </div>
     </div>
 </div>
 <div class="w-full flex justify-center py-8">
     <a href="/logout" class="text-red-600 hover:underline text-lg">Cerrar sesión</a>
 </div>
-<script>
-document.querySelectorAll('input[type="file"]').forEach((input, i) => {
-    input.addEventListener('change', (e) => {
-    const fileName = e.target.files.length ? e.target.files[0].name : 'Ningún archivo seleccionado';
-    const label = document.getElementById(`nombre-archivo-${i + 1}`);
-    if (label) label.textContent = fileName;
-    });
-});</script>
 </body>
 </html>
