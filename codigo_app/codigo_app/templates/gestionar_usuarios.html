@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Usuarios</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @media (max-width: 640px) {
+        body {
+          background-image: url('{{ url_for('static', filename='assets/fondoOscuro.png') }}') !important;
+        }
+      }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gray-900"
+      style="background-image: url('{{ url_for('static', filename='assets/fondoOscuro.png') }}'); background-size: cover; background-position: center;">
+    <div class="flex flex-col items-center w-full max-w-4xl gap-6 -mt-12 px-2">
+        <div class="bg-gray-800 bg-opacity-30 backdrop-blur-md p-8 sm:p-4 rounded-2xl shadow-lg w-full overflow-x-auto"
+             style="max-width: 100vw; box-sizing: border-box; margin-left: 24px; margin-right: 24px;">
+            <h2 class="text-3xl font-bold text-center text-violet-400 mb-6 mt-2 sm:text-2xl">Gestión de Usuarios</h2>
+            {% if mensaje %}
+                <div class="bg-violet-200 bg-opacity-20 text-violet-700 rounded-lg text-center font-bold mb-4 py-2 px-4">
+                    {{ mensaje }}
+                </div>
+            {% endif %}
+            <div class="w-full overflow-x-auto">
+                <form method="post" id="form-cambiar-rol">
+                    <input type="hidden" name="cambiar_rol_usuario" id="cambiar_rol_usuario" value="">
+                    <input type="hidden" name="nuevo_rol" id="nuevo_rol" value="">
+                </form>
+                <table class="min-w-full divide-y divide-gray-700 bg-transparent text-xs sm:text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Usuario</th>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Email</th>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Rol</th>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Eliminar</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        {% for nombre, rol, email, verificado in usuarios %}
+                        <tr>
+                            <td class="px-2 sm:px-4 py-2 text-white break-all">{{ nombre }}</td>
+                            <td class="px-2 sm:px-4 py-2 text-white break-all">{{ email }}</td>
+                            <td class="px-2 sm:px-4 py-2 text-white relative">
+                                <div class="relative">
+                                    <select class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none pr-8" style="height: 40px; min-width: 120px;" onchange="seleccionarRol('{{ nombre }}', this.value)">
+                                        <option value="cliente" {% if rol == 'cliente' %}selected{% endif %}>cliente</option>
+                                        <option value="admin" {% if rol == 'admin' %}selected{% endif %}>admin</option>
+                                    </select>
+                                    <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
+                                        <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-2 sm:px-4 py-2">
+                                <form method="post" onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ nombre }}?');">
+                                    <input type="hidden" name="eliminar_usuario" value="{{ nombre }}">
+                                    <button type="submit" class="p-0 bg-transparent border-none" title="Eliminar usuario">
+                                        <img src="{{ url_for('static', filename='icons/tacho.svg') }}" alt="Eliminar" class="w-6 h-6 inline align-middle" style="filter: invert(38%) sepia(99%) saturate(7492%) hue-rotate(340deg) brightness(97%) contrast(101%);">
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="submit" form="form-cambiar-rol" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center text-base sm:text-lg transition-colors duration-200 mt-4 mb-4">Actualizar</button>
+            </div>
+            <a href="{{ url_for('home') }}" class="w-full text-violet-500 hover:underline font-semibold text-center block text-base sm:text-lg bg-transparent border-none p-0 mt-2">Volver al inicio</a>
+        </div>
+    </div>
+    <script>
+        function seleccionarRol(usuario, rol) {
+            document.getElementById('cambiar_rol_usuario').value = usuario;
+            document.getElementById('nuevo_rol').value = rol;
+        }
+    </script>
+</body>
+</html>

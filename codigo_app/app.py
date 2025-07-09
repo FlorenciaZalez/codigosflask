@@ -178,21 +178,26 @@ def admin():
                 import io
                 stream = io.TextIOWrapper(archivo.stream, encoding='utf-8')
                 reader = csv.DictReader(stream)
+                # Cargar todos los códigos existentes en memoria para evitar consultas repetidas
+                existentes = set((c.cuenta, c.codigo) for c in Codigo.query.with_entities(Codigo.cuenta, Codigo.codigo).all())
+                nuevos = []
                 contador = 0
                 ignoradas = 0
                 for fila in reader:
-                    # Validar que la fila tenga ambas claves y que no sean vacías ni solo espacios
                     cuenta = (fila.get("cuenta") or '').strip()
                     codigo = (fila.get("codigo") or '').strip()
                     if not cuenta or not codigo:
                         ignoradas += 1
                         continue
-                    existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
-                    if not existe:
-                        nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
-                        db.session.add(nuevo_codigo)
-                        contador += 1
-                db.session.commit()
+                    if (cuenta, codigo) in existentes:
+                        ignoradas += 1
+                        continue
+                    nuevos.append(Codigo(cuenta=cuenta, codigo=codigo))
+                    existentes.add((cuenta, codigo))
+                    contador += 1
+                if nuevos:
+                    db.session.bulk_save_objects(nuevos)
+                    db.session.commit()
                 if contador == 0:
                     mensaje_csv = f"⚠️ No se insertó ningún código válido. Revisa el formato del archivo. Filas ignoradas: {ignoradas}."
                 else:
@@ -210,19 +215,21 @@ def admin():
             try:
                 contenido = archivo.read().decode('utf-8').splitlines()
                 reader = csv.DictReader(contenido)
+                existentes = set(c.codigo_cliente for c in CodigoCliente.query.with_entities(CodigoCliente.codigo_cliente).all())
+                nuevos = []
                 contador = 0
                 ignoradas = 0
                 for fila in reader:
                     codigo_cliente = (fila.get('codigo_cliente') or fila.get('codigo') or '').strip()
-                    if not codigo_cliente:
+                    if not codigo_cliente or codigo_cliente in existentes:
                         ignoradas += 1
                         continue
-                    existe = CodigoCliente.query.filter_by(codigo_cliente=codigo_cliente).first()
-                    if not existe:
-                        nuevo_codigo_cliente = CodigoCliente(codigo_cliente=codigo_cliente, usado=False)
-                        db.session.add(nuevo_codigo_cliente)
-                        contador += 1
-                db.session.commit()
+                    nuevos.append(CodigoCliente(codigo_cliente=codigo_cliente, usado=False))
+                    existentes.add(codigo_cliente)
+                    contador += 1
+                if nuevos:
+                    db.session.bulk_save_objects(nuevos)
+                    db.session.commit()
                 if contador == 0:
                     mensaje_csv += "\n⚠️ No se insertó ningún código de cliente válido. Revisa el formato del archivo. Filas ignoradas: {}.".format(ignoradas)
                 else:

@@ -1,0 +1,6 @@
+# .gitignore para evitar subir archivos y carpetas innecesarias
+venv/
+__pycache__/
+db/*.db
+*.pyc
+.DS_Store

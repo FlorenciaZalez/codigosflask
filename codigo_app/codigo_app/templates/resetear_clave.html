@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Restablecer contraseña</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: white;
+    }
+
+    .container {
+      background-color: #1e293b;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    h1 {
+      color: #c084fc;
+      font-size: 24px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      margin-bottom: 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: #334155;
+      color: white;
+      font-size: 14px;
+    }
+
+    input[type="submit"] {
+      width: 100%;
+      padding: 12px;
+      background-color: #8b5cf6;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 15px;
+      transition: background-color 0.3s ease;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #7c3aed;
+    }
+
+    .mensaje {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #facc15;
+    }
+
+    .volver {
+      display: block;
+      margin-top: 20px;
+      text-align: center;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .volver:hover {
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Restablecer tu contraseña</h1>
+
+    {% if mensaje %}
+      <p class="mensaje">{{ mensaje }}</p>
+    {% endif %}
+
+    <form method="post">
+      <label for="nueva_contraseña">Nueva contraseña:</label>
+      <input type="password" id="nueva_contraseña" name="nueva_contraseña" required>
+
+      <label for="confirmar_contraseña">Confirmar contraseña:</label>
+      <input type="password" id="confirmar_contraseña" name="confirmar_contraseña" required>
+
+      <input type="submit" value="Cambiar contraseña" style="font-size: 18px;">
+    </form>
+
+    <a href="{{ url_for('login') }}" class="volver">Volver al login</a>
+  </div>
+
+  <script>
+    document.querySelector("form").addEventListener("submit", function (e) {
+      const pass = document.getElementById("nueva_contraseña").value;
+      const confirm = document.getElementById("confirmar_contraseña").value;
+
+      if (pass !== confirm) {
+        e.preventDefault();
+        alert("⚠️ Las contraseñas no coinciden.");
+      }
+    });
+  </script>
+</body>
+</html>
