@@ -179,17 +179,24 @@ def admin():
                 stream = io.TextIOWrapper(archivo.stream, encoding='utf-8')
                 reader = csv.DictReader(stream)
                 contador = 0
+                ignoradas = 0
                 for fila in reader:
-                    cuenta = fila.get("cuenta", "").strip()
-                    codigo = fila.get("codigo", "").strip()
-                    if cuenta and codigo:
-                        existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
-                        if not existe:
-                            nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
-                            db.session.add(nuevo_codigo)
-                            contador += 1
+                    # Validar que la fila tenga ambas claves y que no sean vacías ni solo espacios
+                    cuenta = (fila.get("cuenta") or '').strip()
+                    codigo = (fila.get("codigo") or '').strip()
+                    if not cuenta or not codigo:
+                        ignoradas += 1
+                        continue
+                    existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
+                    if not existe:
+                        nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
+                        db.session.add(nuevo_codigo)
+                        contador += 1
                 db.session.commit()
-                mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos."
+                if contador == 0:
+                    mensaje_csv = f"⚠️ No se insertó ningún código válido. Revisa el formato del archivo. Filas ignoradas: {ignoradas}."
+                else:
+                    mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos. Filas ignoradas: {ignoradas}."
             except Exception as e:
                 db.session.rollback()
                 mensaje_csv = f"⚠️ Error al procesar el archivo: {e}"
@@ -203,14 +210,23 @@ def admin():
             try:
                 contenido = archivo.read().decode('utf-8').splitlines()
                 reader = csv.DictReader(contenido)
+                contador = 0
+                ignoradas = 0
                 for fila in reader:
                     codigo_cliente = (fila.get('codigo_cliente') or fila.get('codigo') or '').strip()
+                    if not codigo_cliente:
+                        ignoradas += 1
+                        continue
                     existe = CodigoCliente.query.filter_by(codigo_cliente=codigo_cliente).first()
-                    if codigo_cliente and not existe:
+                    if not existe:
                         nuevo_codigo_cliente = CodigoCliente(codigo_cliente=codigo_cliente, usado=False)
                         db.session.add(nuevo_codigo_cliente)
+                        contador += 1
                 db.session.commit()
-                mensaje_csv += "\n✅ Códigos de cliente cargados correctamente"
+                if contador == 0:
+                    mensaje_csv += "\n⚠️ No se insertó ningún código de cliente válido. Revisa el formato del archivo. Filas ignoradas: {}.".format(ignoradas)
+                else:
+                    mensaje_csv += "\n✅ Códigos de cliente cargados correctamente. Se insertaron {} códigos nuevos. Filas ignoradas: {}.".format(contador, ignoradas)
             except Exception as e:
                 db.session.rollback()
                 mensaje_csv += f"\n⚠️ Error al procesar los códigos de cliente: {e}"
