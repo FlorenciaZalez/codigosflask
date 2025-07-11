@@ -41,6 +41,9 @@
       {% if mensaje %}
         {% if mensaje.startswith('✅') %}
           <div class="text-center text-green-500 text-sm mt-2 mb-2">✅ {{ mensaje[1:]|trim }}</div>
+          <div class="text-center text-violet-300 bg-violet-900 bg-opacity-40 rounded-lg px-4 py-2 mt-2 mb-2 font-semibold shadow-md">
+            📧 Te enviamos un correo para verificar tu cuenta. <br>Por favor revisá tu email y hacé clic en el enlace de verificación antes de iniciar sesión.
+          </div>
         {% else %}
           <div class="text-center text-red-500 text-sm mt-2 mb-2">{{ mensaje }}</div>
         {% endif %}

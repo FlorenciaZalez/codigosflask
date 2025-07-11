@@ -107,14 +107,29 @@ def entregar_codigo():
         cuenta = request.form['cuenta']
         from datetime import datetime, timedelta
         hoy = datetime.now().date()
+        # Si el usuario es admin, no hay restricciones
+        if session.get('rol') == 'admin':
+            row = Codigo.query.filter_by(cuenta=cuenta).first()
+            if row:
+                codigo_id = row.id
+                codigo = row.codigo
+                db.session.delete(row)
+                nuevo_historial = Historial(usuario=session['usuario'], cuenta=cuenta, codigo=codigo)
+                db.session.add(nuevo_historial)
+                db.session.commit()
+                mensaje = f"✅ Tu código es: {codigo}"
+            else:
+                mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
+            return render_template("entregar_codigo.html", mensaje=mensaje)
+        # Restricciones para usuarios comunes
         codigos_hoy = Historial.query.filter_by(usuario=session['usuario']).filter(db.func.date(Historial.fecha) == hoy).count()
         if codigos_hoy >= 10:
             mensaje = "⚠️ Límite diario alcanzado: no podés pedir más de 10 códigos hoy."
             return render_template("entregar_codigo.html", mensaje=mensaje)
-        cinco_dias_atras = datetime.now() - timedelta(days=5)
+        tres_dias_atras = datetime.now() - timedelta(days=3)
         ultima = Historial.query.filter_by(usuario=session['usuario'], cuenta=cuenta).order_by(Historial.fecha.desc()).first()
-        if ultima and ultima.fecha > cinco_dias_atras:
-            dias_restantes = (ultima.fecha + timedelta(days=5) - datetime.now()).days + 1
+        if ultima and ultima.fecha > tres_dias_atras:
+            dias_restantes = (ultima.fecha + timedelta(days=3) - datetime.now()).days + 1
             mensaje = f"⚠️ Debés esperar {dias_restantes} día(s) para volver a pedir un código de esta cuenta."
             return render_template("entregar_codigo.html", mensaje=mensaje)
         row = Codigo.query.filter_by(cuenta=cuenta).first()
