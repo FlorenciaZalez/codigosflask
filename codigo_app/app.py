@@ -164,7 +164,7 @@ def admin():
         try:
             Codigo.query.delete()
             db.session.commit()
-            mensaje_csv = "Todos los códigos de juegos fueron eliminados correctamente."
+            mensaje_csv = "🗑️ Todos los códigos de juegos fueron eliminados correctamente."
         except Exception as e:
             db.session.rollback()
             mensaje_csv = f"⚠️ Error al eliminar los códigos: {e}"

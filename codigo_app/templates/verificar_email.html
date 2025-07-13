@@ -3,57 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <title>Cuenta Verificada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/logo.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/logo.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background-color: #121212;
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .container {
-            background-color: #1e1e1e;
-            padding: 40px 50px;
-            border-radius: 16px;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-            text-align: center;
-            color: white;
-            max-width: 420px;
-            width: 100%;
-        }
-
-        h2 {
-            font-size: 26px;
-            color: #d6b4ff;
-            margin-bottom: 25px;
-        }
-
-        a {
-            display: inline-block;
-            margin-top: 25px;
-            padding: 10px 22px;
-            font-size: 15px;
-            background-color: #8f5cf7;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            transition: background-color 0.3s ease;
-        }
-
-        a:hover {
-            background-color: #7d4be0;
-        }
+      body {
+        background-color: #0f172a;
+        min-height: 100vh;
+        margin: 0;
+        font-family: 'Inter', 'Segoe UI', sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>✅ Tu cuenta fue verificada correctamente</h2>
-        <a href="/login">Iniciar sesión</a>
+  <div class="flex items-center justify-center w-full min-h-screen px-2">
+    <div class="bg-gray-900 bg-opacity-80 backdrop-blur-md p-8 sm:p-6 rounded-2xl shadow-lg w-full max-w-md mx-auto flex flex-col items-center">
+      <h2 class="text-3xl font-bold text-violet-400 mb-6 mt-2 text-center">✅ Tu cuenta fue verificada correctamente</h2>
+      <a href="/login" class="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3 px-6 rounded-full text-lg transition-colors duration-200 mt-2 mb-2 w-full text-center">Iniciar sesión</a>
     </div>
-</body></html>
+  </div>
+</body>
+</html>
