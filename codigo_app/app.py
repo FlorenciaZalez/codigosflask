@@ -159,6 +159,16 @@ def admin():
     admin_user = Usuario.query.filter_by(nombre='admin').first()
     admin_email = admin_user.email if admin_user else ''
 
+    # Eliminar todos los códigos de juegos si se solicita
+    if request.method == 'POST' and request.form.get('eliminar_todos_codigos') == '1':
+        try:
+            Codigo.query.delete()
+            db.session.commit()
+            mensaje_csv = "🗑️ Todos los códigos de juegos fueron eliminados correctamente."
+        except Exception as e:
+            db.session.rollback()
+            mensaje_csv = f"⚠️ Error al eliminar los códigos: {e}"
+
     # Alta de códigos
     if 'cuenta' in request.form and 'codigo' in request.form:
         cuenta = request.form['cuenta']
