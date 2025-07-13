@@ -73,8 +73,12 @@ def login():
     if request.method == 'POST':
         nombre_o_email = request.form['usuario']
         contraseña = request.form['contraseña']
-        # Buscar usuario por nombre o email usando SQLAlchemy
-        user = Usuario.query.filter((Usuario.nombre == nombre_o_email) | (Usuario.email == nombre_o_email)).first()
+        # Buscar usuario por nombre o email, insensible a mayúsculas/minúsculas
+        nombre_o_email_lower = nombre_o_email.lower()
+        user = Usuario.query.filter(
+            (func.lower(Usuario.nombre) == nombre_o_email_lower) |
+            (func.lower(Usuario.email) == nombre_o_email_lower)
+        ).first()
         if user and not user.verificado:
             return "⚠️ Tu cuenta aún no fue verificada. Por favor revisá tu correo para activarla."
         if user and check_password_hash(user.contraseña, contraseña):
