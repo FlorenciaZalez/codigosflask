@@ -1,4 +1,4 @@
-            <!-- ...se eliminó la sección de códigos de cliente... -->
+<!-- ...se eliminó la sección de códigos de cliente... -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -82,6 +82,26 @@
     /* Elimino reglas que ocultaban el ícono nativo de input date */
     /* --- FIN reglas input date --- */
     </style>
+    <style>
+    /* Centrado vertical y horizontal del modal */
+    #modal-eliminar-codigos {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-width: 100vw;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+    }
+    #modal-eliminar-codigos > div {
+      margin: auto;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-start px-4 sm:px-8">
 <div class="w-full flex flex-col items-center px-4 sm:px-8">
@@ -138,13 +158,19 @@
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Desde:</label>
                             <div class="relative">
-                                <input type="date" name="fecha_inicio" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
+                                <input type="date" name="fecha_inicio" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none pr-10" style="height: 40px; min-width: 120px;">
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" fill="#a78bfa" rx="2"/><path stroke="#4c1d95" stroke-width="2" d="M3 8h18M16 2v4M8 2v4"/><rect width="4" height="4" x="7" y="12" fill="#fff" rx="1"/><rect width="4" height="4" x="13" y="12" fill="#fff" rx="1"/></svg>
+                                </span>
                             </div>
                         </div>
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Hasta:</label>
                             <div class="relative">
-                                <input type="date" name="fecha_fin" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
+                                <input type="date" name="fecha_fin" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none pr-10" style="height: 40px; min-width: 120px;">
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" fill="#a78bfa" rx="2"/><path stroke="#4c1d95" stroke-width="2" d="M3 8h18M16 2v4M8 2v4"/><rect width="4" height="4" x="7" y="12" fill="#fff" rx="1"/><rect width="4" height="4" x="13" y="12" fill="#fff" rx="1"/></svg>
+                                </span>
                             </div>
                         </div>
                         <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Filtrar</button>
@@ -253,14 +279,30 @@
                   </div>
                 </div>
                 <script>
-                  document.getElementById('eliminar-codigos-link').onclick = function(e) {
-                    e.preventDefault();
-                    document.getElementById('modal-eliminar-codigos').classList.remove('hidden');
-                  };
-                  document.getElementById('cancelar-modal').onclick = function() {
-                    document.getElementById('modal-eliminar-codigos').classList.add('hidden');
-                  };
-                </script>
+function centrarYMostrarModal(idModal) {
+  var modal = document.getElementById(idModal);
+  modal.classList.remove('hidden');
+  setTimeout(function() {
+    modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+function ocultarModal(idModal) {
+  document.getElementById(idModal).classList.add('hidden');
+}
+// Eliminar códigos de juegos
+if (document.getElementById('eliminar-codigos-link')) {
+  document.getElementById('eliminar-codigos-link').onclick = function(e) {
+    e.preventDefault();
+    centrarYMostrarModal('modal-eliminar-codigos');
+  };
+}
+if (document.getElementById('cancelar-modal')) {
+  document.getElementById('cancelar-modal').onclick = function() {
+    ocultarModal('modal-eliminar-codigos');
+  };
+}
+// Si agregas más overlays/modales, usa centrarYMostrarModal('id-del-modal') y ocultarModal('id-del-modal')
+</script>
                 {% if mensaje_csv %}
                     <p class="text-sm mt-2 text-indigo-700">{{ mensaje_csv }}</p>
                 {% endif %}
@@ -276,28 +318,6 @@
                     </div>
                     <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Cargar archivo</button>
                 </form>
-                <a href="#" id="eliminar-codigos-cliente-link" class="text-red-600 hover:underline text-lg block mt-4 text-center">🗑️ Eliminar todos los códigos de cliente</a>
-                <!-- Modal de confirmación para códigos de cliente -->
-                <div id="modal-eliminar-codigos-cliente" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-                  <div class="bg-gray-900 bg-opacity-95 rounded-2xl shadow-lg p-8 max-w-md w-full flex flex-col items-center">
-                    <h2 class="text-2xl font-bold text-red-500 mb-4">¿Eliminar todos los códigos de cliente?</h2>
-                    <p class="text-white text-center mb-6">Esta acción <span class="font-bold text-red-400">no se puede deshacer</span>.<br>¿Estás seguro que quieres continuar?</p>
-                    <form method="post" class="w-full flex flex-col items-center">
-                      <input type="hidden" name="eliminar_codigos_cliente" value="1">
-                      <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-full hover:bg-red-700 font-bold text-lg mb-2 w-full">Sí, eliminar todo</button>
-                    </form>
-                    <button id="cancelar-modal-cliente" class="bg-gray-700 text-white px-6 py-2 rounded-full hover:bg-gray-800 text-lg w-full">Cancelar</button>
-                  </div>
-                </div>
-                <script>
-                  document.getElementById('eliminar-codigos-cliente-link').onclick = function(e) {
-                    e.preventDefault();
-                    document.getElementById('modal-eliminar-codigos-cliente').classList.remove('hidden');
-                  };
-                  document.getElementById('cancelar-modal-cliente').onclick = function() {
-                    document.getElementById('modal-eliminar-codigos-cliente').classList.add('hidden');
-                  };
-                </script>
                 {% if mensaje_codigos_cliente %}
                     <p class="text-sm mt-2 text-indigo-700">{{ mensaje_codigos_cliente }}</p>
                 {% endif %}
