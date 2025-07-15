@@ -174,11 +174,14 @@ def admin():
             db.session.rollback()
             mensaje_csv = f"⚠️ Error al eliminar los códigos: {e}"
 
-    # Alta de códigos
+    # Alta de códigos (insensible a mayúsculas/minúsculas)
     if 'cuenta' in request.form and 'codigo' in request.form:
         cuenta = request.form['cuenta']
         codigo = request.form['codigo']
-        existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
+        existe = Codigo.query.filter(
+            func.lower(Codigo.cuenta) == cuenta.lower(),
+            func.lower(Codigo.codigo) == codigo.lower()
+        ).first()
         if not existe:
             nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
             db.session.add(nuevo_codigo)
@@ -200,7 +203,7 @@ def admin():
             db.session.rollback()
             mensaje_usuario = f"⚠️ El usuario '{nuevo_usuario}' ya existe"
 
-    # Procesar archivo CSV de códigos de juego si se envía
+    # Procesar archivo CSV de códigos de juego si se envía (insensible a mayúsculas/minúsculas)
     if 'archivo_csv' in request.files:
         archivo = request.files['archivo_csv']
         if archivo.filename.endswith('.csv'):
@@ -208,8 +211,8 @@ def admin():
                 import io
                 stream = io.TextIOWrapper(archivo.stream, encoding='utf-8')
                 reader = csv.DictReader(stream)
-                # Cargar todos los códigos existentes en memoria para evitar consultas repetidas
-                existentes = set((c.cuenta, c.codigo) for c in Codigo.query.with_entities(Codigo.cuenta, Codigo.codigo).all())
+                # Cargar todos los códigos existentes en memoria para evitar consultas repetidas (en minúsculas)
+                existentes = set((c.cuenta.lower(), c.codigo.lower()) for c in Codigo.query.with_entities(Codigo.cuenta, Codigo.codigo).all())
                 nuevos = []
                 contador = 0
                 ignoradas = 0
@@ -219,11 +222,11 @@ def admin():
                     if not cuenta or not codigo:
                         ignoradas += 1
                         continue
-                    if (cuenta, codigo) in existentes:
+                    if (cuenta.lower(), codigo.lower()) in existentes:
                         ignoradas += 1
                         continue
                     nuevos.append(Codigo(cuenta=cuenta, codigo=codigo))
-                    existentes.add((cuenta, codigo))
+                    existentes.add((cuenta.lower(), codigo.lower()))
                     contador += 1
                 if nuevos:
                     db.session.bulk_save_objects(nuevos)
@@ -273,7 +276,7 @@ def admin():
     # Mostrar códigos
     codigos = Codigo.query.order_by(Codigo.cuenta).all()
 
-    # Filtros para historial
+    # Filtros para historial (insensible a mayúsculas/minúsculas)
     usuario_filtro = request.args.get('usuario_filtro', '').strip()
     cuenta_filtro = request.args.get('cuenta_filtro', '').strip()
     fecha_inicio = request.args.get('fecha_inicio', '').strip()
@@ -287,9 +290,9 @@ def admin():
     if usuario_filtro or cuenta_filtro or fecha_inicio or fecha_fin:
         query = Historial.query
         if usuario_filtro:
-            query = query.filter_by(usuario=usuario_filtro)
+            query = query.filter(func.lower(Historial.usuario) == usuario_filtro.lower())
         if cuenta_filtro:
-            query = query.filter_by(cuenta=cuenta_filtro)
+            query = query.filter(func.lower(Historial.cuenta) == cuenta_filtro.lower())
         if fecha_inicio:
             query = query.filter(Historial.fecha >= fecha_inicio)
         if fecha_fin:
