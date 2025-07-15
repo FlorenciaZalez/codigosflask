@@ -471,7 +471,7 @@ def gestionar_usuarios():
 # Ruta para verificar email
 @app.route('/verificar-email/<usuario>')
 def verificar_email(usuario):
-    user = Usuario.query.filter_by(nombre=usuario).first()
+    user = Usuario.query.filter(func.lower(Usuario.nombre) == usuario.lower()).first()
     if user:
         user.verificado = True
         db.session.commit()
