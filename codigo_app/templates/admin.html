@@ -276,28 +276,6 @@
                     </div>
                     <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Cargar archivo</button>
                 </form>
-                <a href="#" id="eliminar-codigos-cliente-link" class="text-red-600 hover:underline text-lg block mt-4 text-center">🗑️ Eliminar todos los códigos de cliente</a>
-                <!-- Modal de confirmación para códigos de cliente -->
-                <div id="modal-eliminar-codigos-cliente" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-                  <div class="bg-gray-900 bg-opacity-95 rounded-2xl shadow-lg p-8 max-w-md w-full flex flex-col items-center">
-                    <h2 class="text-2xl font-bold text-red-500 mb-4">¿Eliminar todos los códigos de cliente?</h2>
-                    <p class="text-white text-center mb-6">Esta acción <span class="font-bold text-red-400">no se puede deshacer</span>.<br>¿Estás seguro que quieres continuar?</p>
-                    <form method="post" class="w-full flex flex-col items-center">
-                      <input type="hidden" name="eliminar_codigos_cliente" value="1">
-                      <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-full hover:bg-red-700 font-bold text-lg mb-2 w-full">Sí, eliminar todo</button>
-                    </form>
-                    <button id="cancelar-modal-cliente" class="bg-gray-700 text-white px-6 py-2 rounded-full hover:bg-gray-800 text-lg w-full">Cancelar</button>
-                  </div>
-                </div>
-                <script>
-                  document.getElementById('eliminar-codigos-cliente-link').onclick = function(e) {
-                    e.preventDefault();
-                    document.getElementById('modal-eliminar-codigos-cliente').classList.remove('hidden');
-                  };
-                  document.getElementById('cancelar-modal-cliente').onclick = function() {
-                    document.getElementById('modal-eliminar-codigos-cliente').classList.add('hidden');
-                  };
-                </script>
                 {% if mensaje_codigos_cliente %}
                     <p class="text-sm mt-2 text-indigo-700">{{ mensaje_codigos_cliente }}</p>
                 {% endif %}
