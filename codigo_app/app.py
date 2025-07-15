@@ -389,8 +389,11 @@ def register():
             mensaje = "⚠️ Debés ingresar un correo electrónico válido."
             return render_template("register.html", mensaje=mensaje)
 
-        # Verificar que el código exista y no haya sido usado
-        codigo_valido = CodigoCliente.query.filter_by(codigo_cliente=codigo_cliente, usado=False).first()
+        # Verificar que el código exista y no haya sido usado (insensible a mayúsculas/minúsculas)
+        codigo_valido = CodigoCliente.query.filter(
+            func.lower(CodigoCliente.codigo_cliente) == codigo_cliente.lower(),
+            CodigoCliente.usado == False
+        ).first()
         if not codigo_valido:
             mensaje = "⚠️ Código de cliente inválido o ya utilizado."
         else:
