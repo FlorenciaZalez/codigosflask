@@ -37,11 +37,12 @@
                             <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Usuario</th>
                             <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Email</th>
                             <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Rol</th>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Código Cliente</th>
                             <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Eliminar</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-700">
-                        {% for nombre, rol, email, verificado in usuarios %}
+                        {% for nombre, rol, email, verificado, codigo_cliente in usuarios %}
                         <tr>
                             <td class="px-2 sm:px-4 py-2 text-white break-all">{{ nombre }}</td>
                             <td class="px-2 sm:px-4 py-2 text-white break-all">{{ email }}</td>
@@ -56,6 +57,7 @@
                                     </span>
                                 </div>
                             </td>
+                            <td class="px-2 sm:px-4 py-2 text-white break-all">{{ codigo_cliente or '-' }}</td>
                             <td class="px-2 sm:px-4 py-2">
                                 <form method="post" onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ nombre }}?');">
                                     <input type="hidden" name="eliminar_usuario" value="{{ nombre }}">

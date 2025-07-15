@@ -1,3 +1,38 @@
+            <!-- Tabla de códigos de cliente -->
+            <section class="mb-10">
+                <div class="flex flex-row items-center justify-between mb-4">
+                    <h3 class="text-lg font-normal section-title">Códigos de cliente</h3>
+                </div>
+                <div class="overflow-x-auto w-full box-border px-4 sm:px-8 text-black">
+                    <table class="w-full table-fixed box-border bg-white shadow rounded overflow-hidden">
+                        <thead class="bg-purple-100 text-purple-800">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Código</th>
+                                <th class="px-4 py-2 text-left">Estado</th>
+                                <th class="px-4 py-2 text-left">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cod in codigos_cliente %}
+                            <tr class="border-t">
+                                <td class="px-4 py-2">{{ cod.codigo_cliente }}</td>
+                                <td class="px-4 py-2">{% if cod.usado %}<span class="text-red-600 font-semibold">Usado</span>{% else %}<span class="text-green-600 font-semibold">Disponible</span>{% endif %}</td>
+                                <td class="px-4 py-2">
+                                    {% if cod.usado %}
+                                    <form method="post" style="display:inline;">
+                                        <input type="hidden" name="blanquear_codigo_cliente" value="{{ cod.codigo_cliente }}">
+                                        <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-full text-sm">Blanquear</button>
+                                    </form>
+                                    {% else %}
+                                    <span class="text-gray-400">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -204,6 +239,7 @@
                 <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
                     <input type="text" name="nuevo_usuario" placeholder="Nombre de usuario" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="password" name="nueva_contraseña" placeholder="Contraseña" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
+                    <input type="text" name="codigo_cliente" placeholder="Código de cliente (opcional)" class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <!-- Dropdown para crear nuevo usuario -->
                     <div class="w-full relative mb-4">
                         <label class="block text-base sm:text-sm font-medium mb-1">Rol:</label>

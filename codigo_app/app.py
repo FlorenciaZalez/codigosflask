@@ -34,6 +34,7 @@ class Usuario(db.Model):
     rol = Column(String, nullable=False)
     email = Column(String, nullable=False)
     verificado = Column(Boolean, default=False)
+    codigo_cliente = Column(String, nullable=True)  # Nuevo campo para asociar código de cliente
 
 class Codigo(db.Model):
     __tablename__ = 'codigos'
@@ -152,6 +153,18 @@ def entregar_codigo():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    # Blanquear (liberar) un código de cliente si se solicita
+    if request.method == 'POST' and 'blanquear_codigo_cliente' in request.form:
+        codigo_blanquear = request.form['blanquear_codigo_cliente']
+        codigo_obj = CodigoCliente.query.filter_by(codigo_cliente=codigo_blanquear).first()
+        if codigo_obj:
+            codigo_obj.usado = False
+            # Si hay un usuario con ese código, lo desvinculamos
+            usuario_asociado = Usuario.query.filter_by(codigo_cliente=codigo_blanquear).first()
+            if usuario_asociado:
+                usuario_asociado.codigo_cliente = None
+            db.session.commit()
+            mensaje_csv += f"\n🔄 Código '{codigo_blanquear}' blanqueado y disponible."
     mensaje_codigo = ""
     mensaje_usuario = ""
     mensaje_csv = ""
@@ -188,14 +201,27 @@ def admin():
             db.session.commit()
         mensaje_codigo = "✅ Código cargado correctamente"
 
-    # Alta de usuarios
+    # Alta de usuarios (permite asignar código de cliente)
     if 'nuevo_usuario' in request.form and 'nueva_contraseña' in request.form:
         nuevo_usuario = request.form['nuevo_usuario']
         nueva_contraseña = request.form['nueva_contraseña']
         rol = request.form.get('rol', 'cliente')
+        codigo_cliente = request.form.get('codigo_cliente', '').strip()
         hashed_password = generate_password_hash(nueva_contraseña)
         try:
-            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email='', verificado=True)
+            codigo_cliente_asignado = None
+            if codigo_cliente:
+                # Buscar código de cliente insensible a mayúsculas/minúsculas y que no esté usado
+                codigo_obj = CodigoCliente.query.filter(
+                    func.lower(CodigoCliente.codigo_cliente) == codigo_cliente.lower(),
+                    CodigoCliente.usado == False
+                ).first()
+                if not codigo_obj:
+                    mensaje_usuario = f"⚠️ Código de cliente inválido o ya utilizado. Usuario no creado."
+                    return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
+                codigo_obj.usado = True
+                codigo_cliente_asignado = codigo_obj.codigo_cliente
+            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email='', verificado=True, codigo_cliente=codigo_cliente_asignado)
             db.session.add(nuevo)
             db.session.commit()
             mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente"
@@ -285,6 +311,8 @@ def admin():
 
     # Mostrar códigos
     codigos = Codigo.query.order_by(Codigo.cuenta).all()
+    # Mostrar todos los códigos de cliente (para la tabla)
+    codigos_cliente = CodigoCliente.query.order_by(CodigoCliente.codigo_cliente).all()
 
     # Filtros para historial (insensible a mayúsculas/minúsculas)
     usuario_filtro = request.args.get('usuario_filtro', '').strip()
@@ -344,7 +372,8 @@ def admin():
                         usuarios_historial=usuarios_historial,
                         cuentas_historial=cuentas_historial,
                         mensaje_admin=mensaje_admin,
-                        admin_email=admin_email)
+                        admin_email=admin_email,
+                        codigos_cliente=codigos_cliente)
 
 @app.route('/recuperar-clave', methods=['GET', 'POST'])
 def recuperar_clave():
@@ -470,7 +499,7 @@ def gestionar_usuarios():
             db.session.commit()
             mensaje = f"🗑️ Usuario {nombre} eliminado correctamente."
 
-    # Obtener lista de usuarios
+    # Obtener lista de usuarios (incluyendo código de cliente)
     usuarios = Usuario.query.filter(Usuario.nombre != 'admin').order_by(Usuario.nombre).all()
 
     # Obtener últimos accesos (última actividad registrada en historial)
@@ -479,7 +508,12 @@ def gestionar_usuarios():
         if h[0] and h[1]:
             accesos[h[0]] = h[1]
 
-    return render_template("gestionar_usuarios.html", usuarios=[(u.nombre, u.rol, u.email, u.verificado) for u in usuarios], mensaje=mensaje, accesos=accesos)
+    return render_template(
+        "gestionar_usuarios.html",
+        usuarios=[(u.nombre, u.rol, u.email, u.verificado, u.codigo_cliente) for u in usuarios],
+        mensaje=mensaje,
+        accesos=accesos
+    )
 
 # Ruta para verificar email
 @app.route('/verificar-email/<usuario>')
