@@ -288,21 +288,28 @@ def admin():
                 nuevos = []
                 contador = 0
                 ignoradas = 0
+                actualizados = 0
                 for fila in reader:
+                    email = (fila.get('email') or '').strip().lower()
                     codigo_cliente = (fila.get('codigo_cliente') or fila.get('codigo') or '').strip()
-                    if not codigo_cliente or codigo_cliente in existentes:
+                    if not codigo_cliente:
                         ignoradas += 1
                         continue
-                    nuevos.append(CodigoCliente(codigo_cliente=codigo_cliente, usado=False))
-                    existentes.add(codigo_cliente)
-                    contador += 1
+                    # Si el código no existe, lo agrego a la tabla CodigoCliente
+                    if codigo_cliente not in existentes:
+                        nuevos.append(CodigoCliente(codigo_cliente=codigo_cliente, usado=False))
+                        existentes.add(codigo_cliente)
+                        contador += 1
+                    # Si el email existe en la tabla Usuario, actualizo su código_cliente
+                    if email:
+                        usuario = Usuario.query.filter(db.func.lower(Usuario.email) == email).first()
+                        if usuario:
+                            usuario.codigo_cliente = codigo_cliente
+                            actualizados += 1
                 if nuevos:
                     db.session.bulk_save_objects(nuevos)
-                    db.session.commit()
-                if contador == 0:
-                    mensaje_csv += "\n⚠️ No se insertó ningún código de cliente válido. Revisa el formato del archivo. Filas ignoradas: {}.".format(ignoradas)
-                else:
-                    mensaje_csv += "\n✅ Códigos de cliente cargados correctamente. Se insertaron {} códigos nuevos. Filas ignoradas: {}.".format(contador, ignoradas)
+                db.session.commit()
+                mensaje_csv += f"\n✅ Códigos de cliente cargados correctamente. Se insertaron {contador} códigos nuevos. Filas ignoradas: {ignoradas}. Se actualizaron {actualizados} usuarios."
             except Exception as e:
                 db.session.rollback()
                 mensaje_csv += f"\n⚠️ Error al procesar los códigos de cliente: {e}"
