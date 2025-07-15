@@ -311,8 +311,8 @@ def admin():
 
     # Mostrar códigos
     codigos = Codigo.query.order_by(Codigo.cuenta).all()
-    # Mostrar todos los códigos de cliente (para la tabla)
-    codigos_cliente = CodigoCliente.query.order_by(CodigoCliente.codigo_cliente).all()
+    # Ya no se mostrará la tabla de códigos de cliente en el panel admin
+    # codigos_cliente = CodigoCliente.query.order_by(CodigoCliente.codigo_cliente).all()
 
     # Filtros para historial (insensible a mayúsculas/minúsculas)
     usuario_filtro = request.args.get('usuario_filtro', '').strip()
@@ -372,8 +372,7 @@ def admin():
                         usuarios_historial=usuarios_historial,
                         cuentas_historial=cuentas_historial,
                         mensaje_admin=mensaje_admin,
-                        admin_email=admin_email,
-                        codigos_cliente=codigos_cliente)
+                        admin_email=admin_email)
 
 @app.route('/recuperar-clave', methods=['GET', 'POST'])
 def recuperar_clave():
@@ -495,6 +494,11 @@ def gestionar_usuarios():
         nombre = request.form['eliminar_usuario']
         user = Usuario.query.filter_by(nombre=nombre).first()
         if user:
+            # Si el usuario tiene un código_cliente, lo marcamos como disponible
+            if user.codigo_cliente:
+                codigo_obj = CodigoCliente.query.filter_by(codigo_cliente=user.codigo_cliente).first()
+                if codigo_obj:
+                    codigo_obj.usado = False
             db.session.delete(user)
             db.session.commit()
             mensaje = f"🗑️ Usuario {nombre} eliminado correctamente."
