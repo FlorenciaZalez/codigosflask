@@ -427,7 +427,8 @@ def register():
         else:
             try:
                 hashed_password = generate_password_hash(nueva_contraseña)
-                nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol='cliente', email=email, verificado=False)
+                # Asignar el código de cliente al usuario
+                nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol='cliente', email=email, verificado=False, codigo_cliente=codigo_valido.codigo_cliente)
                 db.session.add(nuevo)
                 # Enviar correo de verificación
                 token_link = f"{BASE_URL}/verificar-email/{nuevo_usuario}"
@@ -488,6 +489,30 @@ def gestionar_usuarios():
             user.rol = nuevo_rol
             db.session.commit()
             mensaje = f"✅ Rol de {nombre} actualizado a {nuevo_rol}."
+
+    # Asignar código de cliente manualmente
+    if request.method == 'POST' and 'asignar_codigo_cliente' in request.form:
+        nombre = request.form['asignar_codigo_cliente']
+        nuevo_codigo = request.form['nuevo_codigo_cliente'].strip()
+        user = Usuario.query.filter_by(nombre=nombre).first()
+        if user:
+            # Validar que el código exista y esté disponible
+            codigo_obj = CodigoCliente.query.filter(
+                func.lower(CodigoCliente.codigo_cliente) == nuevo_codigo.lower(),
+                CodigoCliente.usado == False
+            ).first()
+            if not codigo_obj:
+                mensaje = f"⚠️ Código de cliente inválido o ya utilizado."
+            else:
+                # Si el usuario ya tenía un código, lo liberamos
+                if user.codigo_cliente:
+                    anterior = CodigoCliente.query.filter_by(codigo_cliente=user.codigo_cliente).first()
+                    if anterior:
+                        anterior.usado = False
+                user.codigo_cliente = codigo_obj.codigo_cliente
+                codigo_obj.usado = True
+                db.session.commit()
+                mensaje = f"✅ Código de cliente asignado a {nombre}."
 
     # Eliminar usuario
     if request.method == 'POST' and 'eliminar_usuario' in request.form:

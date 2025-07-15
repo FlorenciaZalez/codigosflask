@@ -57,7 +57,14 @@
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-2 sm:px-4 py-2 text-white break-all">{{ codigo_cliente or '-' }}</td>
+                            <td class="px-2 sm:px-4 py-2 text-white break-all">
+                                {{ codigo_cliente or '-' }}
+                                <form method="post" style="display:inline;" class="mt-1">
+                                    <input type="hidden" name="asignar_codigo_cliente" value="{{ nombre }}">
+                                    <input type="text" name="nuevo_codigo_cliente" placeholder="Asignar código" class="bg-gray-800 text-white rounded px-2 py-1 text-xs w-24 inline-block" style="margin-right:4px;">
+                                    <button type="submit" class="bg-violet-600 hover:bg-violet-700 text-white px-2 py-1 rounded text-xs">Asignar</button>
+                                </form>
+                            </td>
                             <td class="px-2 sm:px-4 py-2">
                                 <form method="post" onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ nombre }}?');">
                                     <input type="hidden" name="eliminar_usuario" value="{{ nombre }}">
