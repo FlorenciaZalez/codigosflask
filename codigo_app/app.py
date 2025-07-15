@@ -109,11 +109,12 @@ def entregar_codigo():
     mensaje = ""
     if request.method == 'POST':
         cuenta = request.form['cuenta']
+        cuenta_lower = cuenta.lower()
         from datetime import datetime, timedelta
         hoy = datetime.now().date()
         # Si el usuario es admin, no hay restricciones
         if session.get('rol') == 'admin':
-            row = Codigo.query.filter_by(cuenta=cuenta).first()
+            row = Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta_lower).first()
             if row:
                 codigo_id = row.id
                 codigo = row.codigo
@@ -136,7 +137,7 @@ def entregar_codigo():
             dias_restantes = (ultima.fecha + timedelta(days=3) - datetime.now()).days + 1
             mensaje = f"⚠️ Debés esperar {dias_restantes} día(s) para volver a pedir un código de esta cuenta."
             return render_template("entregar_codigo.html", mensaje=mensaje)
-        row = Codigo.query.filter_by(cuenta=cuenta).first()
+        row = Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta_lower).first()
         if row:
             codigo_id = row.id
             codigo = row.codigo
