@@ -203,9 +203,10 @@
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Crear nuevo usuario</h3>
                 <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
+                    <input type="email" name="nuevo_email" placeholder="Mail del usuario" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="text" name="nuevo_usuario" placeholder="Nombre de usuario" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="password" name="nueva_contraseña" placeholder="Contraseña" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
-                    <input type="text" name="codigo_cliente" placeholder="Código de cliente (opcional)" class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
+                    <input type="text" name="codigo_cliente" placeholder="Código de cliente" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <!-- Dropdown para crear nuevo usuario -->
                     <div class="w-full relative mb-4">
                         <label class="block text-base sm:text-sm font-medium mb-1">Rol:</label>

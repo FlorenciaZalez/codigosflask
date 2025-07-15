@@ -205,6 +205,7 @@ def admin():
     if 'nuevo_usuario' in request.form and 'nueva_contraseña' in request.form:
         nuevo_usuario = request.form['nuevo_usuario']
         nueva_contraseña = request.form['nueva_contraseña']
+        nuevo_email = request.form.get('nuevo_email', '').strip()
         rol = request.form.get('rol', 'cliente')
         codigo_cliente = request.form.get('codigo_cliente', '').strip()
         hashed_password = generate_password_hash(nueva_contraseña)
@@ -221,7 +222,7 @@ def admin():
                     return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
                 codigo_obj.usado = True
                 codigo_cliente_asignado = codigo_obj.codigo_cliente
-            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email='', verificado=True, codigo_cliente=codigo_cliente_asignado)
+            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email=nuevo_email, verificado=True, codigo_cliente=codigo_cliente_asignado)
             db.session.add(nuevo)
             db.session.commit()
             mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente"
@@ -342,7 +343,9 @@ def admin():
             query = query.filter(Historial.fecha >= fecha_inicio)
         if fecha_fin:
             query = query.filter(Historial.fecha <= fecha_fin)
-        historial = query.order_by(Historial.fecha.desc()).limit(100).all()
+        resultados = query.order_by(Historial.fecha.desc()).limit(100).all()
+        # Convertir a lista de tuplas para el template
+        historial = [(h.usuario, h.cuenta, h.codigo, h.fecha) for h in resultados]
     else:
         historial = []
 
