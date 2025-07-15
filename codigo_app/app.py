@@ -241,6 +241,16 @@ def admin():
         else:
             mensaje_csv = "⚠️ El archivo debe ser .csv"
 
+    # Borrar todos los códigos de cliente si se solicita
+    if request.method == 'POST' and request.form.get('eliminar_codigos_cliente') == '1':
+        try:
+            CodigoCliente.query.delete()
+            db.session.commit()
+            mensaje_csv += "\n🗑️ Todos los códigos de cliente fueron eliminados correctamente."
+        except Exception as e:
+            db.session.rollback()
+            mensaje_csv += f"\n⚠️ Error al eliminar los códigos de cliente: {e}"
+
     # Procesar archivo CSV de códigos de cliente si se envía
     if 'archivo_codigos_cliente' in request.files:
         archivo = request.files['archivo_codigos_cliente']
