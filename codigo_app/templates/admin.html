@@ -174,7 +174,7 @@
                         <td class="px-4 py-2">{{ usuario }}</td>
                         <td class="px-4 py-2">{{ cuenta }}</td>
                         <td class="px-4 py-2">{{ codigo }}</td>
-                        <td class="px-4 py-2">{{ fecha }}</td>
+                        <td class="px-4 py-2">{{ fecha.strftime('%Y-%m-%d %H:%M') if fecha else '' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

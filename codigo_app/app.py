@@ -328,21 +328,38 @@ def admin():
     fecha_inicio = request.args.get('fecha_inicio', '').strip()
     fecha_fin = request.args.get('fecha_fin', '').strip()
 
+    # Normalizar valores 'Todos' a vacío para no filtrar
+    if usuario_filtro.lower() == 'todos':
+        usuario_filtro = ''
+    if cuenta_filtro.lower() == 'todas':
+        cuenta_filtro = ''
+
     # Obtener todos los usuarios únicos y cuentas únicas del historial SIEMPRE
     usuarios_historial = [u[0] for u in db.session.query(Historial.usuario).distinct().order_by(Historial.usuario).all()]
     cuentas_historial = [c[0] for c in db.session.query(Historial.cuenta).distinct().order_by(Historial.cuenta).all()]
 
     # Solo buscar si hay algún filtro aplicado
     if usuario_filtro or cuenta_filtro or fecha_inicio or fecha_fin:
+        from datetime import datetime, timedelta
         query = Historial.query
         if usuario_filtro:
             query = query.filter(func.lower(Historial.usuario) == usuario_filtro.lower())
         if cuenta_filtro:
             query = query.filter(func.lower(Historial.cuenta) == cuenta_filtro.lower())
         if fecha_inicio:
-            query = query.filter(Historial.fecha >= fecha_inicio)
+            # Incluir desde las 00:00:00 del día
+            try:
+                fecha_inicio_dt = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+                query = query.filter(Historial.fecha >= fecha_inicio_dt)
+            except Exception:
+                pass
         if fecha_fin:
-            query = query.filter(Historial.fecha <= fecha_fin)
+            # Incluir hasta las 23:59:59 del día
+            try:
+                fecha_fin_dt = datetime.strptime(fecha_fin, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+                query = query.filter(Historial.fecha <= fecha_fin_dt)
+            except Exception:
+                pass
         resultados = query.order_by(Historial.fecha.desc()).limit(100).all()
         # Convertir a lista de tuplas para el template
         historial = [(h.usuario, h.cuenta, h.codigo, h.fecha) for h in resultados]
