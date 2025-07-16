@@ -222,10 +222,26 @@ def admin():
                     return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
                 codigo_obj.usado = True
                 codigo_cliente_asignado = codigo_obj.codigo_cliente
-            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email=nuevo_email, verificado=True, codigo_cliente=codigo_cliente_asignado)
+            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email=nuevo_email, verificado=False, codigo_cliente=codigo_cliente_asignado)
             db.session.add(nuevo)
             db.session.commit()
-            mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente"
+            # Enviar email de verificación
+            from itsdangerous import URLSafeTimedSerializer
+            serializer = URLSafeTimedSerializer(app.secret_key)
+            token = serializer.dumps(nuevo_email)
+            link = f"{BASE_URL}/verificar/{token}"
+            try:
+                msg = EmailMessage()
+                msg.set_content(f"Hola {nuevo_usuario},\n\nPara activar tu cuenta hacé clic en el siguiente enlace:\n{link}\n\nSi no creaste esta cuenta, ignora este mensaje.")
+                msg["Subject"] = "Verificación de cuenta"
+                msg["From"] = EMAIL_ADDRESS
+                msg["To"] = nuevo_email
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                    smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+                    smtp.send_message(msg)
+                mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente. Se envió un correo de verificación."
+            except Exception as e:
+                mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente, pero no se pudo enviar el correo de verificación: {e}"
         except Exception:
             db.session.rollback()
             mensaje_usuario = f"⚠️ El usuario '{nuevo_usuario}' ya existe"
@@ -409,6 +425,24 @@ def recuperar_clave():
             mensaje = "⚠️ No se encontró ninguna cuenta con ese correo."
     return render_template("recuperar_clave.html", mensaje=mensaje)
 
+@app.route('/verificar/<token>')
+def verificar_cuenta(token):
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    try:
+        email = serializer.loads(token, max_age=3600*24*2)  # 2 días de validez
+    except SignatureExpired:
+        return "El enlace de verificación expiró. Solicita uno nuevo."
+    except BadSignature:
+        return "Enlace de verificación inválido."
+    user = Usuario.query.filter_by(email=email).first()
+    if not user:
+        return "Usuario no encontrado."
+    if user.verificado:
+        return "La cuenta ya está verificada. Puedes iniciar sesión."
+    user.verificado = True
+    db.session.commit()
+    return "✅ Cuenta verificada correctamente. Ya puedes iniciar sesión."
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     mensaje = ""
