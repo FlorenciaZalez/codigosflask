@@ -474,10 +474,13 @@ def register():
                 # Asignar el código de cliente al usuario
                 nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol='cliente', email=email, verificado=False, codigo_cliente=codigo_valido.codigo_cliente)
                 db.session.add(nuevo)
-                # Enviar correo de verificación
-                token_link = f"{BASE_URL}/verificar-email/{nuevo_usuario}"
+                # Enviar correo de verificación con token
+                from itsdangerous import URLSafeTimedSerializer
+                serializer = URLSafeTimedSerializer(app.secret_key)
+                token = serializer.dumps(email)
+                token_link = f"{BASE_URL}/verificar/{token}"
                 msg = EmailMessage()
-                msg.set_content(f"Hola {nuevo_usuario},\n\nPor favor verificá tu cuenta haciendo clic en el siguiente enlace:\n{token_link}")
+                msg.set_content(f"Hola {nuevo_usuario},\n\nPor favor verificá tu cuenta haciendo clic en el siguiente enlace:\n{token_link}\n\nSi no creaste esta cuenta, ignora este mensaje.")
                 msg["Subject"] = "Verificá tu cuenta"
                 msg["From"] = EMAIL_ADDRESS
                 msg["To"] = email
