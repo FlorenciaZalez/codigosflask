@@ -256,14 +256,20 @@ def admin():
                 reader = csv.DictReader(stream)
                 # Cargar todos los códigos existentes en memoria para evitar consultas repetidas (en minúsculas)
                 existentes = set((c.cuenta.lower(), c.codigo.lower()) for c in Codigo.query.with_entities(Codigo.cuenta, Codigo.codigo).all())
+                # Cargar todos los códigos entregados en historial (en minúsculas)
+                entregados = set((h.cuenta.lower(), h.codigo.lower()) for h in Historial.query.with_entities(Historial.cuenta, Historial.codigo).all())
                 nuevos = []
                 contador = 0
                 ignoradas = 0
+                obsoletos = 0
                 for fila in reader:
                     cuenta = (fila.get("cuenta") or '').strip()
                     codigo = (fila.get("codigo") or '').strip()
                     if not cuenta or not codigo:
                         ignoradas += 1
+                        continue
+                    if (cuenta.lower(), codigo.lower()) in entregados:
+                        obsoletos += 1
                         continue
                     if (cuenta.lower(), codigo.lower()) in existentes:
                         ignoradas += 1
@@ -275,9 +281,9 @@ def admin():
                     db.session.bulk_save_objects(nuevos)
                     db.session.commit()
                 if contador == 0:
-                    mensaje_csv = f"⚠️ No se insertó ningún código válido. Revisa el formato del archivo. Filas ignoradas: {ignoradas}."
+                    mensaje_csv = f"⚠️ No se insertó ningún código válido. Revisa el formato del archivo. Filas ignoradas: {ignoradas}. Códigos obsoletos ignorados: {obsoletos}."
                 else:
-                    mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos. Filas ignoradas: {ignoradas}."
+                    mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos. Filas ignoradas: {ignoradas}. Códigos obsoletos ignorados: {obsoletos}."
             except Exception as e:
                 db.session.rollback()
                 mensaje_csv = f"⚠️ Error al procesar el archivo: {e}"
