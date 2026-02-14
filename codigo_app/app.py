@@ -183,6 +183,7 @@ def admin():
     mensaje_codigo = ""
     mensaje_usuario = ""
     mensaje_csv = ""
+    mensaje_gestion = ""
     historial = []
     usuarios_historial = []
     cuentas_historial = []
@@ -354,6 +355,27 @@ def admin():
         else:
             mensaje_csv += "\n⚠️ El archivo de códigos de cliente debe ser .csv"
 
+    # Eliminación múltiple de códigos de juegos seleccionados desde planilla de gestión
+    if request.method == 'POST' and request.form.get('accion_admin') == 'eliminar_codigos_seleccionados':
+        codigos_ids_raw = request.form.getlist('codigos_ids')
+        codigos_ids = []
+        for item in codigos_ids_raw:
+            try:
+                codigos_ids.append(int(item))
+            except (TypeError, ValueError):
+                continue
+
+        if not codigos_ids:
+            mensaje_gestion = "⚠️ Seleccioná al menos un código para eliminar."
+        else:
+            try:
+                eliminados = Codigo.query.filter(Codigo.id.in_(codigos_ids)).delete(synchronize_session=False)
+                db.session.commit()
+                mensaje_gestion = f"✅ Se eliminaron {eliminados} código(s) seleccionados."
+            except Exception as e:
+                db.session.rollback()
+                mensaje_gestion = f"⚠️ Error al eliminar códigos seleccionados: {e}"
+
     # Mostrar códigos
     codigos = Codigo.query.order_by(Codigo.cuenta).all()
     # Ya no se mostrará la tabla de códigos de cliente en el panel admin
@@ -415,6 +437,8 @@ def admin():
                         mensaje_codigo=mensaje_codigo,
                         mensaje_usuario=mensaje_usuario,
                         mensaje_csv=mensaje_csv,
+                        mensaje_gestion=mensaje_gestion,
+                        codigos=codigos,
                         historial=historial,
                         usuarios_historial=usuarios_historial,
                         cuentas_historial=cuentas_historial,
