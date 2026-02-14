@@ -128,11 +128,6 @@ def entregar_codigo():
                 mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
             return render_template("entregar_codigo.html", mensaje=mensaje)
         # Restricciones para usuarios comunes
-        codigos_hoy = Historial.query.filter_by(usuario=session['usuario']).filter(db.func.date(Historial.fecha) == hoy).count()
-        if codigos_hoy >= 10:
-            mensaje = "⚠️ Límite diario alcanzado: no podés pedir más de 10 códigos hoy."
-            return render_template("entregar_codigo.html", mensaje=mensaje)
-
         usuario_actual = Usuario.query.filter_by(nombre=session['usuario']).first()
         codigo_cliente_usuario = (usuario_actual.codigo_cliente or '').strip().upper() if usuario_actual else ''
         dias_restriccion = 3
@@ -236,7 +231,7 @@ def admin():
                 ).first()
                 if not codigo_obj:
                     mensaje_usuario = f"⚠️ Código de cliente inválido o ya utilizado. Usuario no creado."
-                    return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, mensaje_gestion=mensaje_gestion, codigos=[], historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
+                    return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, mensaje_gestion=mensaje_gestion, cuentas_codigos=[], historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
                 codigo_obj.usado = True
                 codigo_cliente_asignado = codigo_obj.codigo_cliente
             nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email=nuevo_email, verificado=False, codigo_cliente=codigo_cliente_asignado)
@@ -356,29 +351,35 @@ def admin():
         else:
             mensaje_csv += "\n⚠️ El archivo de códigos de cliente debe ser .csv"
 
-    # Eliminación múltiple de códigos de juegos seleccionados desde planilla de gestión
-    if request.method == 'POST' and request.form.get('accion_admin') == 'eliminar_codigos_seleccionados':
-        codigos_ids_raw = request.form.getlist('codigos_ids')
-        codigos_ids = []
-        for item in codigos_ids_raw:
-            try:
-                codigos_ids.append(int(item))
-            except (TypeError, ValueError):
-                continue
+    # Eliminación múltiple por cuenta: borra todos los códigos asociados a cada cuenta seleccionada
+    if request.method == 'POST' and request.form.get('accion_admin') == 'eliminar_cuentas_seleccionadas':
+        cuentas_raw = request.form.getlist('cuentas_seleccionadas')
+        cuentas_normalizadas = []
+        for cuenta in cuentas_raw:
+            cuenta_limpia = (cuenta or '').strip()
+            if cuenta_limpia:
+                cuentas_normalizadas.append(cuenta_limpia)
 
-        if not codigos_ids:
-            mensaje_gestion = "⚠️ Seleccioná al menos un código para eliminar."
+        cuentas_unicas = list(dict.fromkeys(cuentas_normalizadas))
+
+        if not cuentas_unicas:
+            mensaje_gestion = "⚠️ Seleccioná al menos una cuenta para eliminar."
         else:
             try:
-                eliminados = Codigo.query.filter(Codigo.id.in_(codigos_ids)).delete(synchronize_session=False)
+                eliminados_total = 0
+                for cuenta in cuentas_unicas:
+                    eliminados_total += Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta.lower()).delete(synchronize_session=False)
                 db.session.commit()
-                mensaje_gestion = f"✅ Se eliminaron {eliminados} código(s) seleccionados."
+                mensaje_gestion = f"✅ Se eliminaron {eliminados_total} código(s) de {len(cuentas_unicas)} cuenta(s)."
             except Exception as e:
                 db.session.rollback()
-                mensaje_gestion = f"⚠️ Error al eliminar códigos seleccionados: {e}"
+                mensaje_gestion = f"⚠️ Error al eliminar cuentas seleccionadas: {e}"
 
-    # Mostrar códigos
-    codigos = Codigo.query.order_by(Codigo.cuenta).all()
+    # Listado de cuentas únicas para gestión y cantidad de códigos por cuenta
+    cuentas_codigos = db.session.query(
+        Codigo.cuenta,
+        func.count(Codigo.id).label('cantidad_codigos')
+    ).group_by(Codigo.cuenta).order_by(Codigo.cuenta).all()
     # Ya no se mostrará la tabla de códigos de cliente en el panel admin
     # codigos_cliente = CodigoCliente.query.order_by(CodigoCliente.codigo_cliente).all()
 
@@ -439,7 +440,7 @@ def admin():
                         mensaje_usuario=mensaje_usuario,
                         mensaje_csv=mensaje_csv,
                         mensaje_gestion=mensaje_gestion,
-                        codigos=codigos,
+                        cuentas_codigos=cuentas_codigos,
                         historial=historial,
                         usuarios_historial=usuarios_historial,
                         cuentas_historial=cuentas_historial,

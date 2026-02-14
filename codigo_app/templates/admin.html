@@ -195,19 +195,18 @@
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Gestionar y eliminar códigos</h3>
                 <div class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-4 w-full">
-                    <label class="block text-base sm:text-sm font-medium mb-1 text-white">Buscar por cuenta o código:</label>
+                    <label class="block text-base sm:text-sm font-medium mb-1 text-white">Buscar por cuenta:</label>
                     <input
                         type="text"
                         id="buscador-codigos"
                         class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base"
-                        placeholder="Escribí para filtrar la planilla"
+                        placeholder="Escribí para filtrar cuentas"
                     >
 
                     <form method="post" id="form-eliminar-codigos" class="w-full flex flex-col gap-3">
-                        <input type="hidden" name="accion_admin" value="eliminar_codigos_seleccionados">
+                        <input type="hidden" name="accion_admin" value="eliminar_cuentas_seleccionadas">
 
                         <div class="flex items-center justify-between gap-2">
-                            <button type="button" id="seleccionar-visibles" class="bg-gray-300 text-black px-4 py-2 rounded-full hover:bg-gray-400 text-sm sm:text-base">Seleccionar visibles</button>
                             <button type="button" id="deseleccionar-todos" class="bg-gray-300 text-black px-4 py-2 rounded-full hover:bg-gray-400 text-sm sm:text-base">Quitar selección</button>
                         </div>
 
@@ -217,24 +216,24 @@
                                     <tr>
                                         <th class="px-4 py-2 text-left w-16">Sel.</th>
                                         <th class="px-4 py-2 text-left">Cuenta</th>
-                                        <th class="px-4 py-2 text-left">Código</th>
+                                        <th class="px-4 py-2 text-left">Códigos cargados</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for item in codigos %}
-                                    <tr class="border-t codigo-row" data-cuenta="{{ item.cuenta|lower }}" data-codigo="{{ item.codigo|lower }}">
+                                    {% for item in cuentas_codigos %}
+                                    <tr class="border-t codigo-row" data-cuenta="{{ item.cuenta|lower }}">
                                         <td class="px-4 py-2 align-top">
-                                            <input type="checkbox" name="codigos_ids" value="{{ item.id }}" class="codigo-checkbox w-5 h-5 accent-purple-600">
+                                            <input type="checkbox" name="cuentas_seleccionadas" value="{{ item.cuenta }}" class="codigo-checkbox w-5 h-5 accent-purple-600">
                                         </td>
                                         <td class="px-4 py-2 break-words">{{ item.cuenta }}</td>
-                                        <td class="px-4 py-2 break-words">{{ item.codigo }}</td>
+                                        <td class="px-4 py-2 break-words">{{ item.cantidad_codigos }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
 
-                        <button type="submit" class="bg-red-600 text-white px-4 py-3 rounded-full hover:bg-red-700 w-full text-lg sm:text-base">Eliminar seleccionadas</button>
+                        <button type="submit" class="bg-red-600 text-white px-4 py-3 rounded-full hover:bg-red-700 w-full text-lg sm:text-base">Eliminar cuentas seleccionadas</button>
                     </form>
 
                     {% if mensaje_gestion %}
@@ -377,7 +376,6 @@
 <script>
     const buscadorCodigos = document.getElementById('buscador-codigos');
     const filasCodigos = Array.from(document.querySelectorAll('.codigo-row'));
-    const botonSeleccionarVisibles = document.getElementById('seleccionar-visibles');
     const botonDeseleccionarTodos = document.getElementById('deseleccionar-todos');
     const formEliminarCodigos = document.getElementById('form-eliminar-codigos');
 
@@ -385,25 +383,13 @@
         const termino = (buscadorCodigos?.value || '').toLowerCase().trim();
         filasCodigos.forEach((fila) => {
             const cuenta = fila.dataset.cuenta || '';
-            const codigo = fila.dataset.codigo || '';
-            const visible = !termino || cuenta.includes(termino) || codigo.includes(termino);
+            const visible = !termino || cuenta.includes(termino);
             fila.style.display = visible ? '' : 'none';
         });
     }
 
     if (buscadorCodigos) {
         buscadorCodigos.addEventListener('input', filtrarCodigos);
-    }
-
-    if (botonSeleccionarVisibles) {
-        botonSeleccionarVisibles.addEventListener('click', function () {
-            filasCodigos.forEach((fila) => {
-                if (fila.style.display !== 'none') {
-                    const checkbox = fila.querySelector('.codigo-checkbox');
-                    if (checkbox) checkbox.checked = true;
-                }
-            });
-        });
     }
 
     if (botonDeseleccionarTodos) {
@@ -419,10 +405,10 @@
             const seleccionados = document.querySelectorAll('.codigo-checkbox:checked').length;
             if (seleccionados === 0) {
                 event.preventDefault();
-                alert('Seleccioná al menos un código para eliminar.');
+                alert('Seleccioná al menos una cuenta para eliminar.');
                 return;
             }
-            const confirma = confirm(`Se eliminarán ${seleccionados} código(s). ¿Querés continuar?`);
+            const confirma = confirm(`Se eliminarán todas las filas de código asociadas a ${seleccionados} cuenta(s). ¿Querés continuar?`);
             if (!confirma) {
                 event.preventDefault();
             }
