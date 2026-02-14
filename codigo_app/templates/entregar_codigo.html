@@ -25,21 +25,19 @@
             <form method="post" class="flex flex-col gap-4 w-full">
                 {% if mensaje %}
                   {% if mensaje.startswith('✅') %}
-                    {% set codigo_entregado = mensaje.split(':', 1)[1].strip() if ':' in mensaje else '' %}
                     <div class="text-center text-green-500 text-sm mt-2 mb-1">
                       ✅ {{ mensaje[1:]|trim }}
                     </div>
-                    {% if codigo_entregado %}
+                    {% if mensaje %}
                       <div class="text-center mb-2">
                         <button
                           type="button"
                           id="btn-copiar-codigo"
-                          data-codigo="{{ codigo_entregado }}"
+                          data-mensaje="{{ mensaje|trim }}"
                           class="text-violet-400 hover:underline font-semibold"
                         >
                           Copiar código
                         </button>
-                        <p id="copiar-ok" class="hidden text-green-400 text-xs mt-1">✅ Código copiado</p>
                       </div>
                     {% endif %}
                   {% else %}
@@ -64,27 +62,47 @@
     </div>
     <script>
       const copyButton = document.querySelector("#btn-copiar-codigo");
+      const copyToast = document.querySelector("#copy-toast");
+      let copyToastTimer;
+
+      function showCopyToast() {
+        if (!copyToast) return;
+        copyToast.classList.remove("hidden");
+        copyToast.classList.remove("opacity-0", "translate-y-1");
+        copyToast.classList.add("opacity-100", "translate-y-0");
+        clearTimeout(copyToastTimer);
+        copyToastTimer = setTimeout(() => {
+          copyToast.classList.remove("opacity-100", "translate-y-0");
+          copyToast.classList.add("opacity-0", "translate-y-1");
+          setTimeout(() => copyToast.classList.add("hidden"), 220);
+        }, 1800);
+      }
+
       if (copyButton) {
         copyButton.addEventListener("click", async function () {
-          const codigo = copyButton.dataset.codigo;
-          const copiedMessage = document.querySelector("#copiar-ok");
+          const textoACopiar = copyButton.dataset.mensaje;
 
           try {
-            await navigator.clipboard.writeText(codigo);
-            copiedMessage.classList.remove("hidden");
-            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
+            await navigator.clipboard.writeText(textoACopiar);
+            showCopyToast();
           } catch (error) {
             const tempInput = document.createElement("textarea");
-            tempInput.value = codigo;
+            tempInput.value = textoACopiar;
             document.body.appendChild(tempInput);
             tempInput.select();
             document.execCommand("copy");
             document.body.removeChild(tempInput);
-            copiedMessage.classList.remove("hidden");
-            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
+            showCopyToast();
           }
         });
       }
     </script>
+
+    <div
+      id="copy-toast"
+      class="hidden fixed top-4 right-4 z-50 bg-gray-900 bg-opacity-95 text-green-400 border border-violet-500 rounded-lg px-4 py-2 text-sm shadow-lg transition-all duration-200 opacity-0 translate-y-1"
+    >
+      ✅ Tu código ha sido copiado
+    </div>
 </body>
 </html>
