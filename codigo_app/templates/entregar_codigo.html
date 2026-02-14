@@ -38,6 +38,7 @@
                         >
                           Copiar código
                         </button>
+                        <p id="copiar-ok" class="hidden text-green-400 text-xs mt-1">✅ Código copiado</p>
                       </div>
                     {% endif %}
                   {% else %}
@@ -62,29 +63,16 @@
     </div>
     <script>
       const copyButton = document.querySelector("#btn-copiar-codigo");
-      const copyToast = document.querySelector("#copy-toast");
-      let copyToastTimer;
-
-      function showCopyToast() {
-        if (!copyToast) return;
-        copyToast.classList.remove("hidden");
-        copyToast.classList.remove("opacity-0", "translate-y-1");
-        copyToast.classList.add("opacity-100", "translate-y-0");
-        clearTimeout(copyToastTimer);
-        copyToastTimer = setTimeout(() => {
-          copyToast.classList.remove("opacity-100", "translate-y-0");
-          copyToast.classList.add("opacity-0", "translate-y-1");
-          setTimeout(() => copyToast.classList.add("hidden"), 220);
-        }, 1800);
-      }
 
       if (copyButton) {
         copyButton.addEventListener("click", async function () {
           const textoACopiar = copyButton.dataset.mensaje;
+          const copiedMessage = document.querySelector("#copiar-ok");
 
           try {
             await navigator.clipboard.writeText(textoACopiar);
-            showCopyToast();
+            copiedMessage.classList.remove("hidden");
+            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
           } catch (error) {
             const tempInput = document.createElement("textarea");
             tempInput.value = textoACopiar;
@@ -92,17 +80,11 @@
             tempInput.select();
             document.execCommand("copy");
             document.body.removeChild(tempInput);
-            showCopyToast();
+            copiedMessage.classList.remove("hidden");
+            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
           }
         });
       }
     </script>
-
-    <div
-      id="copy-toast"
-      class="hidden fixed top-4 right-4 z-50 bg-gray-900 bg-opacity-95 text-green-400 border border-violet-500 rounded-lg px-4 py-2 text-sm shadow-lg transition-all duration-200 opacity-0 translate-y-1"
-    >
-      ✅ Tu código ha sido copiado
-    </div>
 </body>
 </html>
