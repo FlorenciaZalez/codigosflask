@@ -216,17 +216,15 @@
                                     <tr>
                                         <th class="px-4 py-2 text-left w-16">Sel.</th>
                                         <th class="px-4 py-2 text-left">Cuenta</th>
-                                        <th class="px-4 py-2 text-left">Códigos cargados</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for item in cuentas_codigos %}
-                                    <tr class="border-t codigo-row" data-cuenta="{{ item.cuenta|lower }}">
+                                    <tr class="border-t codigo-row" data-cuenta="{{ item|lower }}">
                                         <td class="px-4 py-2 align-top">
-                                            <input type="checkbox" name="cuentas_seleccionadas" value="{{ item.cuenta }}" class="codigo-checkbox w-5 h-5 accent-purple-600">
+                                            <input type="checkbox" name="cuentas_seleccionadas" value="{{ item }}" class="codigo-checkbox w-5 h-5 accent-purple-600">
                                         </td>
-                                        <td class="px-4 py-2 break-words">{{ item.cuenta }}</td>
-                                        <td class="px-4 py-2 break-words">{{ item.cantidad_codigos }}</td>
+                                        <td class="px-4 py-2 break-words">{{ item }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>

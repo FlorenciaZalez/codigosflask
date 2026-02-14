@@ -1,1 +1,1 @@
-web: gunicorn codigo_app.app:app
+web: gunicorn codigo_app.app:app --workers 2 --threads 2 --timeout 120

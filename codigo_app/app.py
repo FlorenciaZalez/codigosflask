@@ -375,11 +375,10 @@ def admin():
                 db.session.rollback()
                 mensaje_gestion = f"⚠️ Error al eliminar cuentas seleccionadas: {e}"
 
-    # Listado de cuentas únicas para gestión y cantidad de códigos por cuenta
-    cuentas_codigos = db.session.query(
-        Codigo.cuenta,
-        func.count(Codigo.id).label('cantidad_codigos')
-    ).group_by(Codigo.cuenta).order_by(Codigo.cuenta).all()
+    # Listado de cuentas únicas para gestión (sin agregaciones pesadas)
+    cuentas_codigos = [
+        row[0] for row in db.session.query(Codigo.cuenta).distinct().order_by(Codigo.cuenta).all()
+    ]
     # Ya no se mostrará la tabla de códigos de cliente en el panel admin
     # codigos_cliente = CodigoCliente.query.order_by(CodigoCliente.codigo_cliente).all()
 
