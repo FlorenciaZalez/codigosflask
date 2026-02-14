@@ -102,6 +102,23 @@
         </nav>
         <!-- CONTENEDOR PRINCIPAL CON EFECTO VIDRIO -->
         <div class="bg-gray-900 bg-opacity-40 backdrop-blur-sm text-white rounded-lg shadow-lg py-4 sm:py-8 px-0 sm:px-8 w-full mt-4">
+            <!-- CSV de códigos de juegos -->
+            <section class="mb-10">
+                <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de juegos</h3>
+                <form method="post" enctype="multipart/form-data" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
+                    <div class="flex flex-col gap-2 w-full">
+                        <label for="archivo_csv" class="text-base sm:text-sm text-white">Seleccionar archivo CSV</label>
+                        <input type="file" name="archivo_csv" id="archivo_csv" accept=".csv" required class="text-lg sm:text-base text-white bg-gray-800 rounded px-4 py-3 sm:px-2 sm:py-1 border border-gray-600 file:hidden w-full">
+                        <label id="nombre-archivo-1" class="text-base sm:text-sm text-gray-400 truncate">Ningún archivo seleccionado</label>
+                    </div>
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Cargar archivo</button>
+                </form>
+                {% if mensaje_csv %}
+                    <p class="text-sm mt-2 text-indigo-700">{{ mensaje_csv }}</p>
+                {% endif %}
+            </section>
+            <hr class="border-t border-white my-6">
+
             <!-- Historial -->
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Filtrar historial</h3>
@@ -287,43 +304,6 @@
             </section>
             <hr class="border-t border-white my-6">
 
-            <!-- CSV de códigos de juegos -->
-            <section class="mb-10">
-                <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de juegos</h3>
-                <form method="post" enctype="multipart/form-data" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
-                    <div class="flex flex-col gap-2 w-full">
-                        <label for="archivo_csv" class="text-base sm:text-sm text-white">Seleccionar archivo CSV</label>
-                        <input type="file" name="archivo_csv" id="archivo_csv" accept=".csv" required class="text-lg sm:text-base text-white bg-gray-800 rounded px-4 py-3 sm:px-2 sm:py-1 border border-gray-600 file:hidden w-full">
-                        <label id="nombre-archivo-1" class="text-base sm:text-sm text-gray-400 truncate">Ningún archivo seleccionado</label>
-                    </div>
-                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Cargar archivo</button>
-                </form>
-                <a href="#" id="eliminar-codigos-link" class="text-red-600 hover:underline text-lg block mt-4 text-center">🗑️ Eliminar todos los códigos de juegos</a>
-                <!-- Modal de confirmación -->
-                <div id="modal-eliminar-codigos" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-                  <div class="bg-gray-900 bg-opacity-95 rounded-2xl shadow-lg p-8 max-w-md w-full flex flex-col items-center">
-                    <h2 class="text-2xl font-bold text-red-500 mb-4">¿Eliminar todos los códigos de juegos?</h2>
-                    <p class="text-white text-center mb-6">Esta acción <span class="font-bold text-red-400">no se puede deshacer</span>.<br>¿Estás seguro que quieres continuar?</p>
-                    <form method="post" class="w-full flex flex-col items-center">
-                      <input type="hidden" name="eliminar_todos_codigos" value="1">
-                      <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-full hover:bg-red-700 font-bold text-lg mb-2 w-full">Sí, eliminar todo</button>
-                    </form>
-                    <button id="cancelar-modal" class="bg-gray-700 text-white px-6 py-2 rounded-full hover:bg-gray-800 text-lg w-full">Cancelar</button>
-                  </div>
-                </div>
-                <script>
-                  document.getElementById('eliminar-codigos-link').onclick = function(e) {
-                    e.preventDefault();
-                    document.getElementById('modal-eliminar-codigos').classList.remove('hidden');
-                  };
-                  document.getElementById('cancelar-modal').onclick = function() {
-                    document.getElementById('modal-eliminar-codigos').classList.add('hidden');
-                  };
-                </script>
-                {% if mensaje_csv %}
-                    <p class="text-sm mt-2 text-indigo-700">{{ mensaje_csv }}</p>
-                {% endif %}
-            </section>
             <!-- CSV de códigos cliente -->
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de cliente</h3>
