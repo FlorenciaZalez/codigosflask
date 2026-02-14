@@ -168,6 +168,15 @@ def entregar_codigo():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    mensaje_codigo = ""
+    mensaje_usuario = ""
+    mensaje_csv = ""
+    mensaje_gestion = ""
+    historial = []
+    usuarios_historial = []
+    cuentas_historial = []
+    mensaje_admin = ""
+
     # Blanquear (liberar) un código de cliente si se solicita
     if request.method == 'POST' and 'blanquear_codigo_cliente' in request.form:
         codigo_blanquear = request.form['blanquear_codigo_cliente']
@@ -180,14 +189,6 @@ def admin():
                 usuario_asociado.codigo_cliente = None
             db.session.commit()
             mensaje_csv += f"\n🔄 Código '{codigo_blanquear}' blanqueado y disponible."
-    mensaje_codigo = ""
-    mensaje_usuario = ""
-    mensaje_csv = ""
-    mensaje_gestion = ""
-    historial = []
-    usuarios_historial = []
-    cuentas_historial = []
-    mensaje_admin = ""
 
     # Obtener email actual del admin
     admin_user = Usuario.query.filter_by(nombre='admin').first()
@@ -235,7 +236,7 @@ def admin():
                 ).first()
                 if not codigo_obj:
                     mensaje_usuario = f"⚠️ Código de cliente inválido o ya utilizado. Usuario no creado."
-                    return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
+                    return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, mensaje_gestion=mensaje_gestion, codigos=[], historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
                 codigo_obj.usado = True
                 codigo_cliente_asignado = codigo_obj.codigo_cliente
             nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email=nuevo_email, verificado=False, codigo_cliente=codigo_cliente_asignado)
