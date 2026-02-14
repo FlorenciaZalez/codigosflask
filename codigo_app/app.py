@@ -132,10 +132,25 @@ def entregar_codigo():
         if codigos_hoy >= 10:
             mensaje = "⚠️ Límite diario alcanzado: no podés pedir más de 10 códigos hoy."
             return render_template("entregar_codigo.html", mensaje=mensaje)
-        tres_dias_atras = datetime.now() - timedelta(days=3)
-        ultima = Historial.query.filter_by(usuario=session['usuario'], cuenta=cuenta).order_by(Historial.fecha.desc()).first()
-        if ultima and ultima.fecha > tres_dias_atras:
-            dias_restantes = (ultima.fecha + timedelta(days=3) - datetime.now()).days + 1
+
+        usuario_actual = Usuario.query.filter_by(nombre=session['usuario']).first()
+        codigo_cliente_usuario = (usuario_actual.codigo_cliente or '').strip().upper() if usuario_actual else ''
+        dias_restriccion = 3
+        if codigo_cliente_usuario.startswith('RV'):
+            dias_restriccion = 2
+        elif codigo_cliente_usuario.startswith('CF'):
+            dias_restriccion = 7
+
+        fecha_restriccion = datetime.now() - timedelta(days=dias_restriccion)
+        ultima = Historial.query.filter(
+            Historial.usuario == session['usuario'],
+            func.lower(Historial.cuenta) == cuenta_lower
+        ).order_by(Historial.fecha.desc()).first()
+
+        if ultima and ultima.fecha > fecha_restriccion:
+            dias_restantes = (ultima.fecha + timedelta(days=dias_restriccion) - datetime.now()).days + 1
+            if dias_restantes < 1:
+                dias_restantes = 1
             mensaje = f"⚠️ Debés esperar {dias_restantes} día(s) para volver a pedir un código de esta cuenta."
             return render_template("entregar_codigo.html", mensaje=mensaje)
         row = Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta_lower).first()
@@ -358,9 +373,9 @@ def admin():
     if usuario_filtro or cuenta_filtro or fecha_inicio or fecha_fin:
         query = Historial.query
         if usuario_filtro:
-            query = query.filter(func.lower(Historial.usuario) == usuario_filtro.lower())
+            query = query.filter(Historial.usuario.ilike(f"%{usuario_filtro}%"))
         if cuenta_filtro:
-            query = query.filter(func.lower(Historial.cuenta) == cuenta_filtro.lower())
+            query = query.filter(Historial.cuenta.ilike(f"%{cuenta_filtro}%"))
         if fecha_inicio:
             query = query.filter(Historial.fecha >= fecha_inicio)
         if fecha_fin:

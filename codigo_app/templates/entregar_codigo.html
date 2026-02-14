@@ -25,9 +25,23 @@
             <form method="post" class="flex flex-col gap-4 w-full">
                 {% if mensaje %}
                   {% if mensaje.startswith('✅') %}
-                    <div class="text-center text-green-500 text-sm mt-2 mb-2">
+                    {% set codigo_entregado = mensaje.split(':', 1)[1].strip() if ':' in mensaje else '' %}
+                    <div class="text-center text-green-500 text-sm mt-2 mb-1">
                       ✅ {{ mensaje[1:]|trim }}
                     </div>
+                    {% if codigo_entregado %}
+                      <div class="text-center mb-2">
+                        <button
+                          type="button"
+                          id="btn-copiar-codigo"
+                          data-codigo="{{ codigo_entregado }}"
+                          class="text-violet-400 hover:underline font-semibold"
+                        >
+                          Copiar código
+                        </button>
+                        <p id="copiar-ok" class="hidden text-green-400 text-xs mt-1">✅ Código copiado</p>
+                      </div>
+                    {% endif %}
                   {% else %}
                     <div class="text-center text-red-500 text-sm mt-2 mb-2">
                        {{ mensaje }}
@@ -48,5 +62,29 @@
             </form>
         </div>
     </div>
+    <script>
+      const copyButton = document.querySelector("#btn-copiar-codigo");
+      if (copyButton) {
+        copyButton.addEventListener("click", async function () {
+          const codigo = copyButton.dataset.codigo;
+          const copiedMessage = document.querySelector("#copiar-ok");
+
+          try {
+            await navigator.clipboard.writeText(codigo);
+            copiedMessage.classList.remove("hidden");
+            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
+          } catch (error) {
+            const tempInput = document.createElement("textarea");
+            tempInput.value = codigo;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            copiedMessage.classList.remove("hidden");
+            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
+          }
+        });
+      }
+    </script>
 </body>
 </html>

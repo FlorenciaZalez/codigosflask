@@ -109,31 +109,37 @@
                     <div class="flex flex-col gap-4 w-full">
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Usuario:</label>
-                            <div class="relative">
-                                <select name="usuario_filtro" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
-                                    <option value="">Todos</option>
-                                    {% for user in usuarios_historial %}
-                                    <option value="{{ user }}" {% if request.args.get('usuario_filtro') == user %}selected{% endif %}>{{ user }}</option>
-                                    {% endfor %}
-                                </select>
-                                <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
-                                    <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-                                </span>
-                            </div>
+                            <input
+                              type="text"
+                              name="usuario_filtro"
+                              list="usuarios_historial_list"
+                              value="{{ request.args.get('usuario_filtro', '') }}"
+                              placeholder="Todos o escribir usuario"
+                              class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500"
+                              style="height: 40px; min-width: 120px;"
+                            >
+                            <datalist id="usuarios_historial_list">
+                                {% for user in usuarios_historial %}
+                                <option value="{{ user }}"></option>
+                                {% endfor %}
+                            </datalist>
                         </div>
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Cuenta:</label>
-                            <div class="relative">
-                                <select name="cuenta_filtro" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
-                                    <option value="">Todas</option>
-                                    {% for cta in cuentas_historial %}
-                                    <option value="{{ cta }}" {% if request.args.get('cuenta_filtro') == cta %}selected{% endif %}>{{ cta }}</option>
-                                    {% endfor %}
-                                </select>
-                                <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
-                                    <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-                                </span>
-                            </div>
+                            <input
+                              type="text"
+                              name="cuenta_filtro"
+                              list="cuentas_historial_list"
+                              value="{{ request.args.get('cuenta_filtro', '') }}"
+                              placeholder="Todas o escribir cuenta"
+                              class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500"
+                              style="height: 40px; min-width: 120px;"
+                            >
+                            <datalist id="cuentas_historial_list">
+                                {% for cta in cuentas_historial %}
+                                <option value="{{ cta }}"></option>
+                                {% endfor %}
+                            </datalist>
                         </div>
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Desde:</label>
