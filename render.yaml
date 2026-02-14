@@ -3,4 +3,4 @@ services:
     name: codigosflask
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    startCommand: "gunicorn codigo_app.app:app --workers 2 --threads 2 --timeout 120"
