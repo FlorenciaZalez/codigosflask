@@ -26,7 +26,34 @@
                     {{ mensaje }}
                 </div>
             {% endif %}
+            <div class="mb-4 relative">
+                <input
+                    type="text"
+                    id="buscar_codigo_cliente"
+                    value="{{ buscar_codigo_cliente or '' }}"
+                    placeholder="Buscar por código cliente (ej: RV019)"
+                    class="w-full bg-gray-900/70 border border-gray-600 text-white rounded-lg px-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    autocomplete="off"
+                    oninput="filtrarFilasPorCodigo()"
+                >
+                <button
+                    type="button"
+                    id="limpiar_busqueda"
+                    class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white text-lg leading-none"
+                    aria-label="Limpiar búsqueda"
+                    title="Limpiar"
+                >
+                    ×
+                </button>
+            </div>
             <div class="w-full overflow-x-auto">
+                <form method="post" id="form-estado-masivo" class="hidden mb-4">
+                    <input type="hidden" name="accion_estado_masivo" id="accion_estado_masivo" value="">
+                    <input type="hidden" name="usuarios_seleccionados" id="usuarios_seleccionados" value="">
+                    <button type="submit" id="btn-estado-masivo" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center text-base sm:text-lg transition-colors duration-200">
+                        Cambiar estado seleccionados
+                    </button>
+                </form>
                 <form method="post" id="form-cambiar-rol">
                     <input type="hidden" name="cambiar_rol_usuario" id="cambiar_rol_usuario" value="">
                     <input type="hidden" name="nuevo_rol" id="nuevo_rol" value="">
@@ -34,19 +61,33 @@
                 <table class="min-w-full divide-y divide-gray-700 bg-transparent text-xs sm:text-sm">
                     <thead>
                         <tr>
-                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Usuario</th>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">
+                                <input type="checkbox" id="seleccionar_todos" class="w-4 h-4 accent-violet-500">
+                            </th>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase sm:hidden">Código Cliente</th>
+                            <th class="hidden sm:table-cell px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Usuario</th>
                             <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Email</th>
-                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Rol</th>
-                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Código Cliente</th>
+                            <th class="hidden sm:table-cell px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Rol</th>
+                            <th class="hidden sm:table-cell px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Código Cliente</th>
+                            <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Estado</th>
                             <th class="px-2 sm:px-4 py-2 text-left font-semibold text-violet-300 uppercase">Eliminar</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-700">
-                        {% for nombre, rol, email, verificado, codigo_cliente in usuarios %}
-                        <tr>
-                            <td class="px-2 sm:px-4 py-2 text-white break-all">{{ nombre }}</td>
+                        {% for nombre, rol, email, verificado, codigo_cliente, activo in usuarios %}
+                        <tr data-codigo-cliente="{{ (codigo_cliente or '')|lower }}">
+                            <td class="px-2 sm:px-4 py-2 text-white">
+                                <input
+                                    type="checkbox"
+                                    class="usuario-checkbox w-4 h-4 accent-violet-500"
+                                    value="{{ nombre }}"
+                                    data-activo="{{ 1 if activo else 0 }}"
+                                >
+                            </td>
+                            <td class="px-2 sm:px-4 py-2 text-white break-all sm:hidden">{{ codigo_cliente or '-' }}</td>
+                            <td class="hidden sm:table-cell px-2 sm:px-4 py-2 text-white break-all">{{ nombre }}</td>
                             <td class="px-2 sm:px-4 py-2 text-white break-all">{{ email }}</td>
-                            <td class="px-2 sm:px-4 py-2 text-white relative">
+                            <td class="hidden sm:table-cell px-2 sm:px-4 py-2 text-white relative">
                                 <div class="relative">
                                     <select class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none pr-8" style="height: 40px; min-width: 120px;" onchange="seleccionarRol('{{ nombre }}', this.value)">
                                         <option value="cliente" {% if rol == 'cliente' %}selected{% endif %}>cliente</option>
@@ -57,7 +98,14 @@
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-2 sm:px-4 py-2 text-white break-all">{{ codigo_cliente or '-' }}</td>
+                            <td class="hidden sm:table-cell px-2 sm:px-4 py-2 text-white break-all">{{ codigo_cliente or '-' }}</td>
+                            <td class="px-2 sm:px-4 py-2">
+                                {% if activo %}
+                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-green-500/20 text-green-300 border border-green-500/40">Activo</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-red-500/20 text-red-300 border border-red-500/40">Desactivado</span>
+                                {% endif %}
+                            </td>
                             <td class="px-2 sm:px-4 py-2">
                                 <form method="post" onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ nombre }}?');">
                                     <input type="hidden" name="eliminar_usuario" value="{{ nombre }}">
@@ -80,6 +128,109 @@
             document.getElementById('cambiar_rol_usuario').value = usuario;
             document.getElementById('nuevo_rol').value = rol;
         }
+
+        function actualizarAccionMasiva() {
+            const checkboxes = Array.from(document.querySelectorAll('.usuario-checkbox'));
+            const seleccionados = checkboxes.filter(chk => chk.checked);
+            const formMasivo = document.getElementById('form-estado-masivo');
+            const accionInput = document.getElementById('accion_estado_masivo');
+            const usuariosInput = document.getElementById('usuarios_seleccionados');
+            const botonMasivo = document.getElementById('btn-estado-masivo');
+
+            usuariosInput.value = seleccionados.map(chk => chk.value).join(',');
+
+            if (seleccionados.length === 0) {
+                formMasivo.classList.add('hidden');
+                accionInput.value = '';
+                return;
+            }
+
+            formMasivo.classList.remove('hidden');
+            const todosActivos = seleccionados.every(chk => chk.dataset.activo === '1');
+            const todosDesactivados = seleccionados.every(chk => chk.dataset.activo === '0');
+
+            if (todosActivos) {
+                accionInput.value = 'desactivar';
+                botonMasivo.textContent = 'Desactivar seleccionados';
+            } else if (todosDesactivados) {
+                accionInput.value = 'activar';
+                botonMasivo.textContent = 'Activar seleccionados';
+            } else {
+                accionInput.value = 'alternar';
+                botonMasivo.textContent = 'Cambiar estado seleccionados';
+            }
+        }
+
+        const seleccionarTodos = document.getElementById('seleccionar_todos');
+        const checkboxesUsuarios = document.querySelectorAll('.usuario-checkbox');
+        const buscarCodigoInput = document.getElementById('buscar_codigo_cliente');
+        const limpiarBusquedaBtn = document.getElementById('limpiar_busqueda');
+
+        function actualizarBotonLimpiar() {
+            if (buscarCodigoInput.value.trim()) {
+                limpiarBusquedaBtn.classList.remove('hidden');
+            } else {
+                limpiarBusquedaBtn.classList.add('hidden');
+            }
+        }
+
+        function filtrarFilasPorCodigo() {
+            const valor = buscarCodigoInput.value.trim().toLowerCase().replace(/\s+/g, '');
+            const filas = document.querySelectorAll('tbody tr[data-codigo-cliente]');
+
+            filas.forEach(fila => {
+                const codigoDesdeData = (fila.dataset.codigoCliente || '').toLowerCase().replace(/\s+/g, '');
+                const codigoDesdeCelda = (fila.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase().replace(/\s+/g, '');
+                const codigo = codigoDesdeData || codigoDesdeCelda;
+                const visible = !valor || codigo.includes(valor);
+                fila.style.display = visible ? '' : 'none';
+
+                const checkbox = fila.querySelector('.usuario-checkbox');
+                if (!visible && checkbox) {
+                    checkbox.checked = false;
+                }
+            });
+
+            const visibles = Array.from(document.querySelectorAll('tbody tr[data-codigo-cliente]'))
+                .filter(fila => fila.style.display !== 'none');
+            const visiblesChecks = visibles.map(fila => fila.querySelector('.usuario-checkbox')).filter(Boolean);
+            seleccionarTodos.checked = visiblesChecks.length > 0 && visiblesChecks.every(chk => chk.checked);
+
+            actualizarAccionMasiva();
+            actualizarBotonLimpiar();
+        }
+
+        seleccionarTodos.addEventListener('change', function() {
+            checkboxesUsuarios.forEach(chk => {
+                chk.checked = seleccionarTodos.checked;
+            });
+            actualizarAccionMasiva();
+        });
+
+        checkboxesUsuarios.forEach(chk => {
+            chk.addEventListener('change', function() {
+                if (!chk.checked) {
+                    seleccionarTodos.checked = false;
+                }
+                actualizarAccionMasiva();
+            });
+        });
+
+        buscarCodigoInput.addEventListener('input', filtrarFilasPorCodigo);
+        buscarCodigoInput.addEventListener('keyup', filtrarFilasPorCodigo);
+        limpiarBusquedaBtn.addEventListener('click', function() {
+            buscarCodigoInput.value = '';
+            filtrarFilasPorCodigo();
+            buscarCodigoInput.focus();
+        });
+
+        document.getElementById('form-estado-masivo').addEventListener('submit', function(e) {
+            if (!document.getElementById('usuarios_seleccionados').value) {
+                e.preventDefault();
+            }
+        });
+
+        filtrarFilasPorCodigo();
     </script>
 </body>
 </html>

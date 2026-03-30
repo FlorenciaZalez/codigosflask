@@ -7,23 +7,49 @@ from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Text, DateTime, func, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, func, Boolean, inspect, text
 
-load_dotenv()
-BASE_URL = os.getenv("BASE_URL", "http://localhost:5003")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+load_dotenv(os.path.join(os.path.dirname(BASE_DIR), '.env'))
+
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5003")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+LOCAL_DB_URL = os.getenv('LOCAL_DATABASE_URL', f"sqlite:///{os.path.join(BASE_DIR, 'db', 'codigos.db')}")
+IS_RENDER = os.getenv('RENDER', '').lower() == 'true'
 
-app = Flask(__name__, template_folder='templates')
-app.secret_key = 'clave_super_segura'
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static')
+)
+app.secret_key = os.getenv('SECRET_KEY', 'clave_super_segura')
 
 # Configuración de SQLAlchemy
-DB_URL = os.getenv('DATABASE_URL')
-if not DB_URL:
-    raise RuntimeError("DATABASE_URL no está configurada. Debes definirla en Render con el string de conexión de PostgreSQL.")
+if os.getenv('USE_LOCAL_DB', '1') == '1' and not IS_RENDER:
+    DB_URL = LOCAL_DB_URL
+else:
+    DB_URL = os.getenv('DATABASE_URL', LOCAL_DB_URL)
+
+if DB_URL.startswith('postgres://'):
+    DB_URL = DB_URL.replace('postgres://', 'postgresql://', 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+
+def ensure_schema_compatibility():
+    with db.engine.begin() as connection:
+        inspector = inspect(connection)
+        if 'usuarios' in inspector.get_table_names():
+            columns = {column['name'] for column in inspector.get_columns('usuarios')}
+            if 'codigo_cliente' not in columns:
+                connection.execute(text("ALTER TABLE usuarios ADD COLUMN codigo_cliente VARCHAR"))
+            if 'activo' not in columns:
+                connection.execute(text("ALTER TABLE usuarios ADD COLUMN activo BOOLEAN"))
+            connection.execute(text("UPDATE usuarios SET activo = :activo WHERE activo IS NULL"), {"activo": True})
 
 # Modelos
 class Usuario(db.Model):
@@ -34,6 +60,7 @@ class Usuario(db.Model):
     rol = Column(String, nullable=False)
     email = Column(String, nullable=False)
     verificado = Column(Boolean, default=False)
+    activo = Column(Boolean, default=True)
     codigo_cliente = Column(String, nullable=True)  # Nuevo campo para asociar código de cliente
 
 class Codigo(db.Model):
@@ -59,6 +86,7 @@ class CodigoCliente(db.Model):
 # Crear tablas y usuario admin por defecto usando SQLAlchemy y contexto Flask
 with app.app_context():
     db.create_all()
+    ensure_schema_compatibility()
     if not Usuario.query.filter_by(nombre='admin').first():
         hashed = generate_password_hash('1234')
         admin = Usuario(nombre='admin', contraseña=hashed, rol='admin', email='admin@mail.com', verificado=True)
@@ -80,6 +108,9 @@ def login():
             (func.lower(Usuario.nombre) == nombre_o_email_lower) |
             (func.lower(Usuario.email) == nombre_o_email_lower)
         ).first()
+        if user and not user.activo:
+            mensaje = "⚠️ Tu cuenta no cumple con los requisitos para utilizar el sistema."
+            return render_template('login.html', mensaje=mensaje)
         if user and not user.verificado:
             return "⚠️ Tu cuenta aún no fue verificada. Por favor revisá tu correo para activarla."
         if user and check_password_hash(user.contraseña, contraseña):
@@ -562,6 +593,7 @@ def gestionar_usuarios():
         return redirect(url_for('login'))
 
     mensaje = ""
+    buscar_codigo_cliente = request.args.get('buscar_codigo_cliente', '').strip()
 
     # Cambiar rol de usuario
     if request.method == 'POST' and 'cambiar_rol_usuario' in request.form:
@@ -572,6 +604,33 @@ def gestionar_usuarios():
             user.rol = nuevo_rol
             db.session.commit()
             mensaje = f"✅ Rol de {nombre} actualizado a {nuevo_rol}."
+
+    # Activar/desactivar usuarios en bloque
+    if request.method == 'POST' and 'accion_estado_masivo' in request.form:
+        accion_estado = request.form.get('accion_estado_masivo', '').strip().lower()
+        seleccion_raw = request.form.get('usuarios_seleccionados', '')
+        seleccion = [nombre.strip() for nombre in seleccion_raw.split(',') if nombre.strip()]
+
+        if not seleccion:
+            mensaje = "⚠️ Debes seleccionar al menos un usuario."
+        else:
+            usuarios_obj = Usuario.query.filter(Usuario.nombre.in_(seleccion)).all()
+            if not usuarios_obj:
+                mensaje = "⚠️ No se encontraron usuarios seleccionados."
+            else:
+                if accion_estado == 'activar':
+                    for user in usuarios_obj:
+                        user.activo = True
+                    mensaje = f"✅ Se activaron {len(usuarios_obj)} usuario(s)."
+                elif accion_estado == 'desactivar':
+                    for user in usuarios_obj:
+                        user.activo = False
+                    mensaje = f"✅ Se desactivaron {len(usuarios_obj)} usuario(s)."
+                else:
+                    for user in usuarios_obj:
+                        user.activo = not bool(user.activo)
+                    mensaje = f"✅ Se actualizó el estado de {len(usuarios_obj)} usuario(s)."
+                db.session.commit()
 
     # ...eliminada función de asignar código de cliente manualmente...
 
@@ -589,8 +648,18 @@ def gestionar_usuarios():
             db.session.commit()
             mensaje = f"🗑️ Usuario {nombre} eliminado correctamente."
 
-    # Obtener lista de usuarios (incluyendo código de cliente)
-    usuarios = Usuario.query.filter(Usuario.nombre != 'admin').order_by(Usuario.nombre).all()
+    # Obtener lista de usuarios (incluyendo código de cliente), con filtro opcional por código
+    query_usuarios = Usuario.query.filter(Usuario.nombre != 'admin')
+    if buscar_codigo_cliente:
+        query_usuarios = query_usuarios.filter(
+            func.lower(func.coalesce(Usuario.codigo_cliente, '')).like(f"%{buscar_codigo_cliente.lower()}%")
+        )
+
+    usuarios = query_usuarios.order_by(
+        db.cast(db.func.substr(db.func.coalesce(Usuario.codigo_cliente, ''), 3), db.Integer).asc(),
+        Usuario.codigo_cliente.asc(),
+        Usuario.nombre.asc()
+    ).all()
 
     # Obtener últimos accesos (última actividad registrada en historial)
     accesos = {}
@@ -600,9 +669,10 @@ def gestionar_usuarios():
 
     return render_template(
         "gestionar_usuarios.html",
-        usuarios=[(u.nombre, u.rol, u.email, u.verificado, u.codigo_cliente) for u in usuarios],
+        usuarios=[(u.nombre, u.rol, u.email, u.verificado, u.codigo_cliente, u.activo) for u in usuarios],
         mensaje=mensaje,
-        accesos=accesos
+        accesos=accesos,
+        buscar_codigo_cliente=buscar_codigo_cliente
     )
 
 # Ruta para verificar email
@@ -615,5 +685,9 @@ def verificar_email(usuario):
     return render_template("verificar_email.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host=os.getenv('FLASK_RUN_HOST', '127.0.0.1'),
+        port=int(os.getenv('FLASK_RUN_PORT', '5003')),
+        debug=os.getenv('FLASK_DEBUG', '1') == '1'
+    )
 
