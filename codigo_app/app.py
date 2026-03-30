@@ -655,8 +655,9 @@ def gestionar_usuarios():
             func.lower(func.coalesce(Usuario.codigo_cliente, '')).like(f"%{buscar_codigo_cliente.lower()}%")
         )
 
+    # Evita errores 500 en PostgreSQL cuando existen códigos con formato no numérico.
     usuarios = query_usuarios.order_by(
-        db.cast(db.func.substr(db.func.coalesce(Usuario.codigo_cliente, ''), 3), db.Integer).asc(),
+        db.case((Usuario.codigo_cliente.is_(None), 1), else_=0),
         Usuario.codigo_cliente.asc(),
         Usuario.nombre.asc()
     ).all()
@@ -690,4 +691,3 @@ if __name__ == "__main__":
         port=int(os.getenv('FLASK_RUN_PORT', '5003')),
         debug=os.getenv('FLASK_DEBUG', '1') == '1'
     )
-
