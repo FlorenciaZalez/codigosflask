@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, jsonify, render_template, request, redirect, session, url_for
 import csv
+import hmac
+import logging
 import os
 import requests  # Asegurate de que esté importado al comienzo del archivo
 import smtplib
@@ -7,7 +9,8 @@ from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Text, DateTime, func, Boolean, inspect, text
+from sqlalchemy import Column, Integer, String, Text, DateTime, func, Boolean, inspect, text, UniqueConstraint
+from sqlalchemy.exc import IntegrityError
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -16,6 +19,7 @@ load_dotenv(os.path.join(os.path.dirname(BASE_DIR), '.env'))
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5003")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+TIBADIGITAL_API_KEY = os.getenv("TIBADIGITAL_API_KEY")
 LOCAL_DB_URL = os.getenv('LOCAL_DATABASE_URL', f"sqlite:///{os.path.join(BASE_DIR, 'db', 'codigos.db')}")
 IS_RENDER = os.getenv('RENDER', '').lower() == 'true'
 
@@ -38,6 +42,22 @@ if DB_URL.startswith('postgres://'):
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+logger = logging.getLogger(__name__)
+
+
+def send_email_message(subject, recipient, body):
+    if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
+        raise RuntimeError("Faltan EMAIL_ADDRESS o EMAIL_PASSWORD en la configuración.")
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_ADDRESS
+    msg["To"] = recipient
+    msg.set_content(body)
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        smtp.send_message(msg)
 
 
 def ensure_schema_compatibility():
@@ -77,6 +97,20 @@ class Historial(db.Model):
     codigo = Column(String, nullable=False)
     fecha = Column(DateTime, default=func.now())
 
+class ReservaCodigo(db.Model):
+    __tablename__ = 'reservas_codigos'
+    __table_args__ = (
+        UniqueConstraint('allocation_id', name='uq_reservas_codigos_allocation_id'),
+    )
+    id = Column(Integer, primary_key=True)
+    allocation_id = Column(String, nullable=False)
+    order_id = Column(String, nullable=False)
+    cuenta = Column(String, nullable=False)
+    codigo = Column(String, nullable=False)
+    estado = Column(String, nullable=False, default='reserved')
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
 class CodigoCliente(db.Model):
     __tablename__ = 'codigos_cliente'
     id = Column(Integer, primary_key=True)
@@ -96,6 +130,118 @@ with app.app_context():
 @app.route('/')
 def home_redirect():
     return redirect(url_for('login'))
+
+def require_tibadigital_api_key():
+    configured_key = TIBADIGITAL_API_KEY or ''
+    authorization = request.headers.get('Authorization', '')
+    supplied_key = authorization.removeprefix('Bearer ').strip()
+    return bool(configured_key and supplied_key and hmac.compare_digest(configured_key, supplied_key))
+
+@app.route('/api/v1/codes/reserve', methods=['POST'])
+def reserve_code_for_order():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    allocation_id = str(payload.get('allocation_id') or '').strip()
+    order_id = str(payload.get('order_id') or '').strip()
+    cuenta = str(payload.get('account') or '').strip()
+    allow_create = payload.get('allow_create', True) is not False
+    if not allocation_id or not order_id or not cuenta:
+        return jsonify(error='allocation_id, order_id and account are required'), 400
+
+    existing = ReservaCodigo.query.filter_by(allocation_id=allocation_id).first()
+    if existing:
+        if existing.order_id != order_id or existing.cuenta.lower() != cuenta.lower():
+            return jsonify(error='allocation_id is already assigned to another purchase'), 409
+        return jsonify(
+            reservation_id=existing.id,
+            allocation_id=existing.allocation_id,
+            account=existing.cuenta,
+            code=existing.codigo,
+            status=existing.estado,
+        )
+
+    if not allow_create:
+        return jsonify(error='Reservation not found', code='RESERVATION_NOT_FOUND'), 404
+
+    try:
+        available_code = (
+            Codigo.query
+            .filter(func.lower(Codigo.cuenta) == cuenta.lower())
+            .order_by(Codigo.id.asc())
+            .with_for_update(skip_locked=True)
+            .first()
+        )
+        if not available_code:
+            return jsonify(error='No codes available for this account', code='CODE_UNAVAILABLE'), 409
+
+        reservation = ReservaCodigo(
+            allocation_id=allocation_id,
+            order_id=order_id,
+            cuenta=available_code.cuenta,
+            codigo=available_code.codigo,
+            estado='reserved',
+        )
+        db.session.delete(available_code)
+        db.session.add(reservation)
+        db.session.commit()
+        return jsonify(
+            reservation_id=reservation.id,
+            allocation_id=reservation.allocation_id,
+            account=reservation.cuenta,
+            code=reservation.codigo,
+            status=reservation.estado,
+        ), 201
+    except IntegrityError:
+        db.session.rollback()
+        existing = ReservaCodigo.query.filter_by(allocation_id=allocation_id).first()
+        if existing and existing.order_id == order_id and existing.cuenta.lower() == cuenta.lower():
+            return jsonify(
+                reservation_id=existing.id,
+                allocation_id=existing.allocation_id,
+                account=existing.cuenta,
+                code=existing.codigo,
+                status=existing.estado,
+            )
+        return jsonify(error='Could not reserve the code'), 409
+    except Exception:
+        db.session.rollback()
+        logger.exception('Could not reserve a code for allocation %s', allocation_id)
+        return jsonify(error='Could not reserve the code'), 500
+
+@app.route('/api/v1/codes/confirm', methods=['POST'])
+def confirm_code_for_order():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    allocation_id = str(payload.get('allocation_id') or '').strip()
+    order_id = str(payload.get('order_id') or '').strip()
+    if not allocation_id or not order_id:
+        return jsonify(error='allocation_id and order_id are required'), 400
+
+    reservation = ReservaCodigo.query.filter_by(allocation_id=allocation_id).first()
+    if not reservation:
+        return jsonify(error='Reservation not found'), 404
+    if reservation.order_id != order_id:
+        return jsonify(error='Reservation does not belong to this order'), 409
+
+    if reservation.estado != 'used':
+        reservation.estado = 'used'
+        reservation.used_at = func.now()
+        db.session.add(Historial(
+            usuario='TIBADIGITAL',
+            cuenta=reservation.cuenta,
+            codigo=reservation.codigo,
+        ))
+        db.session.commit()
+
+    return jsonify(
+        reservation_id=reservation.id,
+        allocation_id=reservation.allocation_id,
+        status=reservation.estado,
+    )
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
