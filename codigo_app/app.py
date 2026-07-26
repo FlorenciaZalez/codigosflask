@@ -70,6 +70,16 @@ def ensure_schema_compatibility():
             if 'activo' not in columns:
                 connection.execute(text("ALTER TABLE usuarios ADD COLUMN activo BOOLEAN"))
             connection.execute(text("UPDATE usuarios SET activo = :activo WHERE activo IS NULL"), {"activo": True})
+        if 'codigos_cliente' in inspector.get_table_names():
+            columns = {column['name'] for column in inspector.get_columns('codigos_cliente')}
+            if 'tibadigital_user_id' not in columns:
+                connection.execute(text("ALTER TABLE codigos_cliente ADD COLUMN tibadigital_user_id VARCHAR"))
+            if 'tibadigital_used_at' not in columns:
+                connection.execute(text("ALTER TABLE codigos_cliente ADD COLUMN tibadigital_used_at TIMESTAMP"))
+            connection.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_codigos_cliente_tibadigital_user_id "
+                "ON codigos_cliente (tibadigital_user_id)"
+            ))
 
 # Modelos
 class Usuario(db.Model):
@@ -116,6 +126,8 @@ class CodigoCliente(db.Model):
     id = Column(Integer, primary_key=True)
     codigo_cliente = Column(String, unique=True, nullable=False)
     usado = Column(Boolean, default=False)
+    tibadigital_user_id = Column(String, unique=True, nullable=True)
+    tibadigital_used_at = Column(DateTime, nullable=True)
 
 # Crear tablas y usuario admin por defecto usando SQLAlchemy y contexto Flask
 with app.app_context():
@@ -136,6 +148,83 @@ def require_tibadigital_api_key():
     authorization = request.headers.get('Authorization', '')
     supplied_key = authorization.removeprefix('Bearer ').strip()
     return bool(configured_key and supplied_key and hmac.compare_digest(configured_key, supplied_key))
+
+
+def find_reseller_for_tibadigital(code, email, lock=False):
+    normalized_code = str(code or '').strip().upper()
+    normalized_email = str(email or '').strip().lower()
+    if not normalized_code.startswith('RV') or not normalized_email:
+        return None, None
+
+    code_query = CodigoCliente.query.filter(
+        func.lower(CodigoCliente.codigo_cliente) == normalized_code.lower()
+    )
+    if lock:
+        code_query = code_query.with_for_update()
+    code_row = code_query.first()
+    if not code_row or not code_row.usado:
+        return None, None
+
+    user = Usuario.query.filter(
+        func.lower(Usuario.codigo_cliente) == normalized_code.lower(),
+        func.lower(Usuario.email) == normalized_email,
+        Usuario.activo == True,
+    ).first()
+    if not user:
+        return None, None
+    return code_row, user
+
+
+@app.route('/api/v1/tibadigital/resellers/validate', methods=['POST'])
+def validate_tibadigital_reseller():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    code_row, _user = find_reseller_for_tibadigital(payload.get('code'), payload.get('email'))
+    if not code_row:
+        return jsonify(error='El código RV no corresponde al email indicado.'), 404
+    if code_row.tibadigital_user_id:
+        return jsonify(error='El código RV ya fue utilizado en TIBADIGITAL.'), 409
+    return jsonify(valid=True, code=code_row.codigo_cliente)
+
+
+@app.route('/api/v1/tibadigital/resellers/claim', methods=['POST'])
+def claim_tibadigital_reseller():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    tibadigital_user_id = str(payload.get('user_id') or '').strip()
+    if not tibadigital_user_id:
+        return jsonify(error='user_id is required'), 400
+
+    try:
+        code_row, _user = find_reseller_for_tibadigital(
+            payload.get('code'),
+            payload.get('email'),
+            lock=True,
+        )
+        if not code_row:
+            db.session.rollback()
+            return jsonify(error='El código RV no corresponde al email indicado.'), 404
+        if code_row.tibadigital_user_id:
+            if code_row.tibadigital_user_id == tibadigital_user_id:
+                return jsonify(claimed=True, code=code_row.codigo_cliente)
+            db.session.rollback()
+            return jsonify(error='El código RV ya fue utilizado en TIBADIGITAL.'), 409
+
+        code_row.tibadigital_user_id = tibadigital_user_id
+        code_row.tibadigital_used_at = func.now()
+        db.session.commit()
+        return jsonify(claimed=True, code=code_row.codigo_cliente)
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(error='El código RV ya fue utilizado en TIBADIGITAL.'), 409
+    except Exception:
+        db.session.rollback()
+        logger.exception('No se pudo registrar el uso del código RV en TIBADIGITAL.')
+        return jsonify(error='No se pudo validar el código en este momento.'), 500
 
 @app.route('/api/v1/codes/reserve', methods=['POST'])
 def reserve_code_for_order():
