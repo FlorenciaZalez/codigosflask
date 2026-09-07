@@ -13,6 +13,30 @@
           background-image: url('{{ url_for('static', filename='assets/fondoOscuro.png') }}') !important;
         }
       }
+
+      .users-table-scroll {
+        max-height: clamp(300px, 48vh, 540px);
+        overflow: auto;
+        scrollbar-color: #8b5cf6 #111827;
+        scrollbar-width: thin;
+      }
+
+      .users-table-scroll thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #111827;
+      }
+
+      .users-table-scroll::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+
+      .users-table-scroll::-webkit-scrollbar-thumb {
+        background: #8b5cf6;
+        border-radius: 999px;
+      }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen bg-gray-900"
@@ -58,6 +82,7 @@
                     <input type="hidden" name="cambiar_rol_usuario" id="cambiar_rol_usuario" value="">
                     <input type="hidden" name="nuevo_rol" id="nuevo_rol" value="">
                 </form>
+                <div class="users-table-scroll w-full rounded-lg border border-gray-700">
                 <table class="min-w-full divide-y divide-gray-700 bg-transparent text-xs sm:text-sm">
                     <thead>
                         <tr>
@@ -118,6 +143,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
                 <button type="submit" form="form-cambiar-rol" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-full text-center text-base sm:text-lg transition-colors duration-200 mt-4 mb-4">Actualizar</button>
             </div>
             <a href="{{ url_for('home') }}" class="w-full text-violet-500 hover:underline font-semibold text-center block text-base sm:text-lg bg-transparent border-none p-0 mt-2">Volver al inicio</a>

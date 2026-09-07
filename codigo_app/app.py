@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, render_template, request, redirect, session, url_for
 import csv
 import hmac
+from html import escape
 import logging
 import os
 import requests  # Asegurate de que esté importado al comienzo del archivo
@@ -58,6 +59,37 @@ def send_email_message(subject, recipient, body):
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         smtp.send_message(msg)
+
+
+def verification_email_content(username, verification_url):
+    """Return accessible plain-text and HTML versions of a verification email."""
+    safe_username = escape(username or "")
+    safe_url = escape(verification_url, quote=True)
+    text_body = (
+        f"Hola {username},\n\n"
+        "Para verificar tu cuenta, abrí este enlace:\n"
+        f"{verification_url}\n\n"
+        "Si no creaste esta cuenta, podés ignorar este mensaje."
+    )
+    html_body = f"""\
+<!doctype html>
+<html lang="es">
+  <body style="margin:0;background:#f6f7f9;font-family:Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;">
+          <tr><td style="padding:32px;">
+            <h1 style="margin:0 0 16px;font-size:24px;">Verificá tu cuenta</h1>
+            <p style="margin:0 0 24px;font-size:16px;line-height:1.5;">Hola {safe_username},<br><br>Confirmá tu correo para activar tu cuenta.</p>
+            <p style="margin:0 0 28px;"><a href="{safe_url}" style="display:inline-block;padding:14px 22px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;">Verificar mi cuenta</a></p>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7280;">Si no creaste esta cuenta, podés ignorar este mensaje.</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>"""
+    return text_body, html_body
 
 
 def ensure_schema_compatibility():
@@ -500,7 +532,9 @@ def admin():
             link = f"{BASE_URL}/verificar/{token}"
             try:
                 msg = EmailMessage()
-                msg.set_content(f"Hola {nuevo_usuario},\n\nPara activar tu cuenta hacé clic en el siguiente enlace:\n{link}\n\nSi no creaste esta cuenta, ignora este mensaje.")
+                email_text, email_html = verification_email_content(nuevo_usuario, link)
+                msg.set_content(email_text)
+                msg.add_alternative(email_html, subtype="html")
                 msg["Subject"] = "Verificación de cuenta"
                 msg["From"] = EMAIL_ADDRESS
                 msg["To"] = nuevo_email
@@ -782,7 +816,9 @@ def register():
                 token = serializer.dumps(email)
                 token_link = f"{BASE_URL}/verificar/{token}"
                 msg = EmailMessage()
-                msg.set_content(f"Hola {nuevo_usuario},\n\nPor favor verificá tu cuenta haciendo clic en el siguiente enlace:\n{token_link}\n\nSi no creaste esta cuenta, ignora este mensaje.")
+                email_text, email_html = verification_email_content(nuevo_usuario, token_link)
+                msg.set_content(email_text)
+                msg.add_alternative(email_html, subtype="html")
                 msg["Subject"] = "Verificá tu cuenta"
                 msg["From"] = EMAIL_ADDRESS
                 msg["To"] = email
