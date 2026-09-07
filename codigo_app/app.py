@@ -17,7 +17,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 load_dotenv(os.path.join(os.path.dirname(BASE_DIR), '.env'))
 
-BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5003")
+# Normaliza errores habituales de configuración, como una barra o punto final.
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5003").strip().rstrip('/').rstrip('.')
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 TIBADIGITAL_API_KEY = os.getenv("TIBADIGITAL_API_KEY")
