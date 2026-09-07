@@ -1,9 +1,12 @@
+            <!-- ...se eliminó la sección de códigos de cliente... -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Panel de Administración</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/logo.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
     body {
@@ -99,6 +102,23 @@
         </nav>
         <!-- CONTENEDOR PRINCIPAL CON EFECTO VIDRIO -->
         <div class="bg-gray-900 bg-opacity-40 backdrop-blur-sm text-white rounded-lg shadow-lg py-4 sm:py-8 px-0 sm:px-8 w-full mt-4">
+            <!-- CSV de códigos de juegos -->
+            <section class="mb-10">
+                <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de juegos</h3>
+                <form method="post" enctype="multipart/form-data" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
+                    <div class="flex flex-col gap-2 w-full">
+                        <label for="archivo_csv" class="text-base sm:text-sm text-white">Seleccionar archivo CSV</label>
+                        <input type="file" name="archivo_csv" id="archivo_csv" accept=".csv" required class="text-lg sm:text-base text-white bg-gray-800 rounded px-4 py-3 sm:px-2 sm:py-1 border border-gray-600 file:hidden w-full">
+                        <label id="nombre-archivo-1" class="text-base sm:text-sm text-gray-400 truncate">Ningún archivo seleccionado</label>
+                    </div>
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Cargar archivo</button>
+                </form>
+                {% if mensaje_csv %}
+                    <p class="text-sm mt-2 text-indigo-700">{{ mensaje_csv }}</p>
+                {% endif %}
+            </section>
+            <hr class="border-t border-white my-6">
+
             <!-- Historial -->
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Filtrar historial</h3>
@@ -106,31 +126,37 @@
                     <div class="flex flex-col gap-4 w-full">
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Usuario:</label>
-                            <div class="relative">
-                                <select name="usuario_filtro" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
-                                    <option value="">Todos</option>
-                                    {% for user in usuarios_historial %}
-                                    <option value="{{ user }}" {% if request.args.get('usuario_filtro') == user %}selected{% endif %}>{{ user }}</option>
-                                    {% endfor %}
-                                </select>
-                                <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
-                                    <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-                                </span>
-                            </div>
+                            <input
+                              type="text"
+                              name="usuario_filtro"
+                              list="usuarios_historial_list"
+                              value="{{ request.args.get('usuario_filtro', '') }}"
+                              placeholder="Todos o escribir usuario"
+                              class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500"
+                              style="height: 40px; min-width: 120px;"
+                            >
+                            <datalist id="usuarios_historial_list">
+                                {% for user in usuarios_historial %}
+                                <option value="{{ user }}"></option>
+                                {% endfor %}
+                            </datalist>
                         </div>
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Cuenta:</label>
-                            <div class="relative">
-                                <select name="cuenta_filtro" class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none" style="height: 40px; min-width: 120px;">
-                                    <option value="">Todas</option>
-                                    {% for cta in cuentas_historial %}
-                                    <option value="{{ cta }}" {% if request.args.get('cuenta_filtro') == cta %}selected{% endif %}>{{ cta }}</option>
-                                    {% endfor %}
-                                </select>
-                                <span class="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2">
-                                    <svg width="20" height="20" fill="#1E1E1E" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.584l3.71-3.354a.75.75 0 111.02 1.1l-4.25 3.84a.75.75 0 01-1.02 0l-4.25-3.84a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-                                </span>
-                            </div>
+                            <input
+                              type="text"
+                              name="cuenta_filtro"
+                              list="cuentas_historial_list"
+                              value="{{ request.args.get('cuenta_filtro', '') }}"
+                              placeholder="Todas o escribir cuenta"
+                              class="bg-white text-black rounded px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-violet-500"
+                              style="height: 40px; min-width: 120px;"
+                            >
+                            <datalist id="cuentas_historial_list">
+                                {% for cta in cuentas_historial %}
+                                <option value="{{ cta }}"></option>
+                                {% endfor %}
+                            </datalist>
                         </div>
                         <div class="w-full relative mb-4">
                             <label class="block text-base sm:text-sm font-medium mb-1">Desde:</label>
@@ -184,6 +210,59 @@
 
             <!-- Cargar código -->
             <section class="mb-10">
+                <h3 class="text-lg font-normal mb-4 section-title">Gestionar y eliminar códigos</h3>
+                <div class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-4 w-full">
+                    <label class="block text-base sm:text-sm font-medium mb-1 text-white">Buscar por cuenta:</label>
+                    <input
+                        type="text"
+                        id="buscador-codigos"
+                        class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base"
+                        placeholder="Escribí para filtrar cuentas"
+                    >
+
+                    <form method="post" id="form-eliminar-codigos" class="w-full flex flex-col gap-3">
+                        <input type="hidden" name="accion_admin" value="eliminar_cuentas_seleccionadas">
+
+                        <div class="flex items-center justify-between gap-2">
+                            <button type="button" id="deseleccionar-todos" class="bg-gray-300 text-black px-4 py-2 rounded-full hover:bg-gray-400 text-sm sm:text-base">Quitar selección</button>
+                        </div>
+
+                        <div class="overflow-x-auto overflow-y-auto w-full box-border text-black rounded-lg" style="max-height: 190px;">
+                            <table class="w-full table-fixed box-border bg-white shadow rounded overflow-hidden" id="tabla-codigos-gestion">
+                                <thead class="bg-purple-100 text-purple-800">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left w-16">Sel.</th>
+                                        <th class="px-4 py-2 text-left">Cuenta</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in cuentas_codigos %}
+                                    <tr class="border-t codigo-row" data-cuenta="{{ item|lower }}">
+                                        <td class="px-4 py-2 align-top">
+                                            <input type="checkbox" name="cuentas_seleccionadas" value="{{ item }}" class="codigo-checkbox w-5 h-5 accent-purple-600">
+                                        </td>
+                                        <td class="px-4 py-2 break-words">{{ item }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <button type="submit" class="bg-red-600 text-white px-4 py-3 rounded-full hover:bg-red-700 w-full text-lg sm:text-base">Eliminar cuentas seleccionadas</button>
+                    </form>
+
+                    {% if mensaje_gestion %}
+                        {% if mensaje_gestion.startswith('✅') %}
+                            <p class="text-sm mt-1 text-green-500">{{ mensaje_gestion }}</p>
+                        {% else %}
+                            <p class="text-sm mt-1 text-red-500">{{ mensaje_gestion }}</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </section>
+            <hr class="border-t border-white my-6">
+
+            <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Cargar código</h3>
                 <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
                     <input type="text" name="cuenta" placeholder="Número de cuenta" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
@@ -200,8 +279,10 @@
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Crear nuevo usuario</h3>
                 <form method="post" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
+                    <input type="email" name="nuevo_email" placeholder="Mail del usuario" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="text" name="nuevo_usuario" placeholder="Nombre de usuario" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <input type="password" name="nueva_contraseña" placeholder="Contraseña" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
+                    <input type="text" name="codigo_cliente" placeholder="Código de cliente" required class="border rounded px-4 py-3 sm:px-2 sm:py-1 text-black w-full text-lg sm:text-base">
                     <!-- Dropdown para crear nuevo usuario -->
                     <div class="w-full relative mb-4">
                         <label class="block text-base sm:text-sm font-medium mb-1">Rol:</label>
@@ -223,21 +304,6 @@
             </section>
             <hr class="border-t border-white my-6">
 
-            <!-- CSV de códigos de juegos -->
-            <section class="mb-10">
-                <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de juegos</h3>
-                <form method="post" enctype="multipart/form-data" class="glass-card py-4 px-4 sm:px-8 rounded shadow-inner flex flex-col gap-3 w-full">
-                    <div class="flex flex-col gap-2 w-full">
-                        <label for="archivo_csv" class="text-base sm:text-sm text-white">Seleccionar archivo CSV</label>
-                        <input type="file" name="archivo_csv" id="archivo_csv" accept=".csv" required class="text-lg sm:text-base text-white bg-gray-800 rounded px-4 py-3 sm:px-2 sm:py-1 border border-gray-600 file:hidden w-full">
-                        <label id="nombre-archivo-1" class="text-base sm:text-sm text-gray-400 truncate">Ningún archivo seleccionado</label>
-                    </div>
-                    <button type="submit" class="bg-purple-600 text-white px-4 py-3 rounded-full hover:bg-purple-700 w-full text-lg sm:text-base">Cargar archivo</button>
-                </form>
-                {% if mensaje_csv %}
-                    <p class="text-sm mt-2 text-indigo-700">{{ mensaje_csv }}</p>
-                {% endif %}
-            </section>
             <!-- CSV de códigos cliente -->
             <section class="mb-10">
                 <h3 class="text-lg font-normal mb-4 section-title">Subir CSV de códigos de cliente</h3>
@@ -285,5 +351,47 @@
 <div class="w-full flex justify-center py-8">
     <a href="/logout" class="text-red-600 hover:underline text-lg">Cerrar sesión</a>
 </div>
+<script>
+    const buscadorCodigos = document.getElementById('buscador-codigos');
+    const filasCodigos = Array.from(document.querySelectorAll('.codigo-row'));
+    const botonDeseleccionarTodos = document.getElementById('deseleccionar-todos');
+    const formEliminarCodigos = document.getElementById('form-eliminar-codigos');
+
+    function filtrarCodigos() {
+        const termino = (buscadorCodigos?.value || '').toLowerCase().trim();
+        filasCodigos.forEach((fila) => {
+            const cuenta = fila.dataset.cuenta || '';
+            const visible = !termino || cuenta.includes(termino);
+            fila.style.display = visible ? '' : 'none';
+        });
+    }
+
+    if (buscadorCodigos) {
+        buscadorCodigos.addEventListener('input', filtrarCodigos);
+    }
+
+    if (botonDeseleccionarTodos) {
+        botonDeseleccionarTodos.addEventListener('click', function () {
+            document.querySelectorAll('.codigo-checkbox').forEach((checkbox) => {
+                checkbox.checked = false;
+            });
+        });
+    }
+
+    if (formEliminarCodigos) {
+        formEliminarCodigos.addEventListener('submit', function (event) {
+            const seleccionados = document.querySelectorAll('.codigo-checkbox:checked').length;
+            if (seleccionados === 0) {
+                event.preventDefault();
+                alert('Seleccioná al menos una cuenta para eliminar.');
+                return;
+            }
+            const confirma = confirm(`Se eliminarán todas las filas de código asociadas a ${seleccionados} cuenta(s). ¿Querés continuar?`);
+            if (!confirma) {
+                event.preventDefault();
+            }
+        });
+    }
+</script>
 </body>
 </html>

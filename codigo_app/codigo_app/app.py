@@ -1,5 +1,8 @@
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, jsonify, render_template, request, redirect, session, url_for
 import csv
+import hmac
+from html import escape
+import logging
 import os
 import requests  # Asegurate de que esté importado al comienzo del archivo
 import smtplib
@@ -7,23 +10,156 @@ from email.message import EmailMessage
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Text, DateTime, func, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, func, Boolean, inspect, text, UniqueConstraint, and_, or_
+from sqlalchemy.exc import IntegrityError
 
-load_dotenv()
-BASE_URL = os.getenv("BASE_URL", "http://localhost:5003")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+load_dotenv(os.path.join(os.path.dirname(BASE_DIR), '.env'))
+
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:5003")
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+TIBADIGITAL_API_KEY = os.getenv("TIBADIGITAL_API_KEY")
+EMAIL_DELIVERY_ENABLED = os.getenv('EMAIL_DELIVERY_ENABLED', '1') == '1'
+AUTO_VERIFY_WITHOUT_EMAIL = os.getenv('AUTO_VERIFY_WITHOUT_EMAIL', '0') == '1'
+LOCAL_DB_URL = os.getenv('LOCAL_DATABASE_URL', f"sqlite:///{os.path.join(BASE_DIR, 'db', 'codigos.db')}")
+IS_RENDER = os.getenv('RENDER', '').lower() == 'true'
 
-app = Flask(__name__, template_folder='templates')
-app.secret_key = 'clave_super_segura'
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static')
+)
+app.secret_key = os.getenv('SECRET_KEY', 'clave_super_segura')
 
 # Configuración de SQLAlchemy
-DB_URL = os.getenv('DATABASE_URL')
-if not DB_URL:
-    raise RuntimeError("DATABASE_URL no está configurada. Debes definirla en Render con el string de conexión de PostgreSQL.")
+if os.getenv('USE_LOCAL_DB', '1') == '1' and not IS_RENDER:
+    DB_URL = LOCAL_DB_URL
+else:
+    DB_URL = os.getenv('DATABASE_URL', LOCAL_DB_URL)
+
+if DB_URL.startswith('postgres://'):
+    DB_URL = DB_URL.replace('postgres://', 'postgresql://', 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+logger = logging.getLogger(__name__)
+
+
+def send_email_message(subject, recipient, body, html_body=None):
+    if not EMAIL_DELIVERY_ENABLED:
+        raise RuntimeError("El envio de correo esta deshabilitado por configuracion.")
+
+    if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
+        raise RuntimeError("Faltan EMAIL_ADDRESS o EMAIL_PASSWORD en la configuración.")
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_ADDRESS
+    msg["To"] = recipient
+    msg.set_content(body)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        smtp.send_message(msg)
+
+
+def verification_email_content(username, verification_url):
+    """Return accessible plain-text and HTML versions of a verification email."""
+    safe_username = escape(username or "")
+    safe_url = escape(verification_url, quote=True)
+    text_body = (
+        f"Hola {username},\n\n"
+        "Para verificar tu cuenta, abrí este enlace:\n"
+        f"{verification_url}\n\n"
+        "Si no creaste esta cuenta, podés ignorar este mensaje."
+    )
+    html_body = f"""\
+<!doctype html>
+<html lang="es">
+  <body style="margin:0;background:#f6f7f9;font-family:Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;">
+          <tr><td style="padding:32px;">
+            <h1 style="margin:0 0 16px;font-size:24px;">Verificá tu cuenta</h1>
+            <p style="margin:0 0 24px;font-size:16px;line-height:1.5;">Hola {safe_username},<br><br>Confirmá tu correo para activar tu cuenta.</p>
+            <p style="margin:0 0 28px;">
+              <a href="{safe_url}" style="display:inline-block;padding:14px 22px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;">Verificar mi cuenta</a>
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:#6b7280;">Si no creaste esta cuenta, podés ignorar este mensaje.</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>"""
+    return text_body, html_body
+
+
+def ensure_schema_compatibility():
+    with db.engine.begin() as connection:
+        inspector = inspect(connection)
+        if 'usuarios' in inspector.get_table_names():
+            columns = {column['name'] for column in inspector.get_columns('usuarios')}
+            if 'codigo_cliente' not in columns:
+                connection.execute(text("ALTER TABLE usuarios ADD COLUMN codigo_cliente VARCHAR"))
+            if 'activo' not in columns:
+                connection.execute(text("ALTER TABLE usuarios ADD COLUMN activo BOOLEAN"))
+            connection.execute(text("UPDATE usuarios SET activo = :activo WHERE activo IS NULL"), {"activo": True})
+        if 'codigos_cliente' in inspector.get_table_names():
+            columns = {column['name'] for column in inspector.get_columns('codigos_cliente')}
+            if 'tibadigital_user_id' not in columns:
+                connection.execute(text("ALTER TABLE codigos_cliente ADD COLUMN tibadigital_user_id VARCHAR"))
+            if 'tibadigital_used_at' not in columns:
+                connection.execute(text("ALTER TABLE codigos_cliente ADD COLUMN tibadigital_used_at TIMESTAMP"))
+            connection.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_codigos_cliente_tibadigital_user_id "
+                "ON codigos_cliente (tibadigital_user_id)"
+            ))
+        if 'reservas_codigos' in inspector.get_table_names():
+            columns = {column['name'] for column in inspector.get_columns('reservas_codigos')}
+            if 'usuario' not in columns:
+                connection.execute(text("ALTER TABLE reservas_codigos ADD COLUMN usuario VARCHAR"))
+            if 'customer_name' not in columns:
+                connection.execute(text("ALTER TABLE reservas_codigos ADD COLUMN customer_name VARCHAR"))
+            if 'customer_email' not in columns:
+                connection.execute(text("ALTER TABLE reservas_codigos ADD COLUMN customer_email VARCHAR"))
+            if 'client_code' not in columns:
+                connection.execute(text("ALTER TABLE reservas_codigos ADD COLUMN client_code VARCHAR"))
+        if 'historial' in inspector.get_table_names():
+            columns = {column['name'] for column in inspector.get_columns('historial')}
+            if 'origen' not in columns:
+                connection.execute(text("ALTER TABLE historial ADD COLUMN origen VARCHAR"))
+            if 'external_user_id' not in columns:
+                connection.execute(text("ALTER TABLE historial ADD COLUMN external_user_id VARCHAR"))
+            if 'customer_email' not in columns:
+                connection.execute(text("ALTER TABLE historial ADD COLUMN customer_email VARCHAR"))
+            if 'client_code' not in columns:
+                connection.execute(text("ALTER TABLE historial ADD COLUMN client_code VARCHAR"))
+
+
+def should_auto_verify_new_user(email):
+    return AUTO_VERIFY_WITHOUT_EMAIL and not EMAIL_DELIVERY_ENABLED and bool(email)
+
+
+def verification_result_message(auto_verified, username):
+    if auto_verified:
+        return (
+            f"✅ Usuario '{username}' creado correctamente. "
+            "La cuenta quedó verificada automáticamente porque el envío de correo está deshabilitado."
+        )
+    return f"✅ Usuario '{username}' creado correctamente. Se envió un correo de verificación."
+
+
+def registration_result_message(auto_verified):
+    if auto_verified:
+        return "✅ Cuenta creada con éxito. Ya podés iniciar sesión."
+    return "✅ Cuenta creada con éxito. Revisá tu correo para verificarla antes de iniciar sesión."
 
 # Modelos
 class Usuario(db.Model):
@@ -34,6 +170,8 @@ class Usuario(db.Model):
     rol = Column(String, nullable=False)
     email = Column(String, nullable=False)
     verificado = Column(Boolean, default=False)
+    activo = Column(Boolean, default=True)
+    codigo_cliente = Column(String, nullable=True)  # Nuevo campo para asociar código de cliente
 
 class Codigo(db.Model):
     __tablename__ = 'codigos'
@@ -48,16 +186,41 @@ class Historial(db.Model):
     cuenta = Column(String, nullable=False)
     codigo = Column(String, nullable=False)
     fecha = Column(DateTime, default=func.now())
+    origen = Column(String, nullable=True)
+    external_user_id = Column(String, nullable=True)
+    customer_email = Column(String, nullable=True)
+    client_code = Column(String, nullable=True)
+
+class ReservaCodigo(db.Model):
+    __tablename__ = 'reservas_codigos'
+    __table_args__ = (
+        UniqueConstraint('allocation_id', name='uq_reservas_codigos_allocation_id'),
+    )
+    id = Column(Integer, primary_key=True)
+    allocation_id = Column(String, nullable=False)
+    order_id = Column(String, nullable=False)
+    usuario = Column(String, nullable=True)
+    customer_name = Column(String, nullable=True)
+    customer_email = Column(String, nullable=True)
+    client_code = Column(String, nullable=True)
+    cuenta = Column(String, nullable=False)
+    codigo = Column(String, nullable=False)
+    estado = Column(String, nullable=False, default='reserved')
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    used_at = Column(DateTime, nullable=True)
 
 class CodigoCliente(db.Model):
     __tablename__ = 'codigos_cliente'
     id = Column(Integer, primary_key=True)
     codigo_cliente = Column(String, unique=True, nullable=False)
     usado = Column(Boolean, default=False)
+    tibadigital_user_id = Column(String, unique=True, nullable=True)
+    tibadigital_used_at = Column(DateTime, nullable=True)
 
 # Crear tablas y usuario admin por defecto usando SQLAlchemy y contexto Flask
 with app.app_context():
     db.create_all()
+    ensure_schema_compatibility()
     if not Usuario.query.filter_by(nombre='admin').first():
         hashed = generate_password_hash('1234')
         admin = Usuario(nombre='admin', contraseña=hashed, rol='admin', email='admin@mail.com', verificado=True)
@@ -68,13 +231,343 @@ with app.app_context():
 def home_redirect():
     return redirect(url_for('login'))
 
+def require_tibadigital_api_key():
+    configured_key = TIBADIGITAL_API_KEY or ''
+    authorization = request.headers.get('Authorization', '')
+    supplied_key = authorization.removeprefix('Bearer ').strip()
+    return bool(configured_key and supplied_key and hmac.compare_digest(configured_key, supplied_key))
+
+
+def tibadigital_history_user(customer_name):
+    return f"{customer_name} (TIBADIGITAL)"
+
+
+def restriction_days_for_client_code(client_code):
+    normalized_code = str(client_code or '').strip().upper()
+    if normalized_code.startswith('RV'):
+        return 2
+    if normalized_code.startswith('CF'):
+        return 7
+    return 3
+
+
+def get_tibadigital_restriction(user_id, account, client_code):
+    from datetime import datetime, timedelta, timezone
+    import math
+
+    last_purchase = (
+        Historial.query
+        .filter(
+            Historial.origen == 'TIBADIGITAL',
+            Historial.external_user_id == user_id,
+            func.lower(Historial.cuenta) == account.lower(),
+        )
+        .order_by(Historial.fecha.desc())
+        .first()
+    )
+    if not last_purchase:
+        return None
+
+    restriction_days = restriction_days_for_client_code(client_code)
+    available_at = last_purchase.fecha + timedelta(days=restriction_days)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if available_at <= now:
+        return None
+
+    remaining_days = max(1, math.ceil((available_at - now).total_seconds() / 86400))
+    return {
+        'available_at': available_at,
+        'remaining_days': remaining_days,
+    }
+
+
+def tibadigital_customer_from_payload(payload):
+    return {
+        'user_id': str(payload.get('user_id') or '').strip(),
+        'customer_name': str(payload.get('customer_name') or '').strip(),
+        'customer_email': str(payload.get('customer_email') or '').strip().lower(),
+        'client_code': str(payload.get('client_code') or '').strip().upper(),
+    }
+
+
+def find_reseller_for_tibadigital(code, email, lock=False):
+    normalized_code = str(code or '').strip().upper()
+    normalized_email = str(email or '').strip().lower()
+    if not normalized_code.startswith('RV') or not normalized_email:
+        return None, None
+
+    code_query = CodigoCliente.query.filter(
+        func.lower(CodigoCliente.codigo_cliente) == normalized_code.lower()
+    )
+    if lock:
+        code_query = code_query.with_for_update()
+    code_row = code_query.first()
+    if not code_row or not code_row.usado:
+        return None, None
+
+    user = Usuario.query.filter(
+        func.lower(Usuario.codigo_cliente) == normalized_code.lower(),
+        func.lower(Usuario.email) == normalized_email,
+        Usuario.activo == True,
+    ).first()
+    if not user:
+        return None, None
+    return code_row, user
+
+
+@app.route('/api/v1/tibadigital/resellers/validate', methods=['POST'])
+def validate_tibadigital_reseller():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    code_row, _user = find_reseller_for_tibadigital(payload.get('code'), payload.get('email'))
+    if not code_row:
+        return jsonify(error='El código RV no corresponde al email indicado.'), 404
+    if code_row.tibadigital_user_id:
+        return jsonify(error='El código RV ya fue utilizado en TIBADIGITAL.'), 409
+    return jsonify(valid=True, code=code_row.codigo_cliente)
+
+
+@app.route('/api/v1/tibadigital/resellers/claim', methods=['POST'])
+def claim_tibadigital_reseller():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    tibadigital_user_id = str(payload.get('user_id') or '').strip()
+    if not tibadigital_user_id:
+        return jsonify(error='user_id is required'), 400
+
+    try:
+        code_row, _user = find_reseller_for_tibadigital(
+            payload.get('code'),
+            payload.get('email'),
+            lock=True,
+        )
+        if not code_row:
+            db.session.rollback()
+            return jsonify(error='El código RV no corresponde al email indicado.'), 404
+        if code_row.tibadigital_user_id:
+            if code_row.tibadigital_user_id == tibadigital_user_id:
+                return jsonify(claimed=True, code=code_row.codigo_cliente)
+            db.session.rollback()
+            return jsonify(error='El código RV ya fue utilizado en TIBADIGITAL.'), 409
+
+        code_row.tibadigital_user_id = tibadigital_user_id
+        code_row.tibadigital_used_at = func.now()
+        db.session.commit()
+        return jsonify(claimed=True, code=code_row.codigo_cliente)
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(error='El código RV ya fue utilizado en TIBADIGITAL.'), 409
+    except Exception:
+        db.session.rollback()
+        logger.exception('No se pudo registrar el uso del código RV en TIBADIGITAL.')
+        return jsonify(error='No se pudo validar el código en este momento.'), 500
+
+@app.route('/api/v1/codes/reserve', methods=['POST'])
+def reserve_code_for_order():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    allocation_id = str(payload.get('allocation_id') or '').strip()
+    order_id = str(payload.get('order_id') or '').strip()
+    customer = tibadigital_customer_from_payload(payload)
+    cuenta = str(payload.get('account') or '').strip()
+    allow_create = payload.get('allow_create', True) is not False
+    if not allocation_id or not order_id or not cuenta or not all(customer.values()):
+        return jsonify(
+            error=(
+                'allocation_id, order_id, user_id, customer_name, customer_email, '
+                'client_code and account are required'
+            )
+        ), 400
+
+    existing = ReservaCodigo.query.filter_by(allocation_id=allocation_id).first()
+    if existing:
+        if (
+            existing.order_id != order_id
+            or existing.cuenta.lower() != cuenta.lower()
+            or (existing.usuario and existing.usuario != customer['user_id'])
+            or (existing.customer_name and existing.customer_name != customer['customer_name'])
+            or (existing.customer_email and existing.customer_email.lower() != customer['customer_email'])
+            or (existing.client_code and existing.client_code.upper() != customer['client_code'])
+        ):
+            return jsonify(error='allocation_id is already assigned to another purchase'), 409
+        if not existing.usuario or not existing.customer_name or not existing.customer_email or not existing.client_code:
+            existing.usuario = existing.usuario or customer['user_id']
+            existing.customer_name = existing.customer_name or customer['customer_name']
+            existing.customer_email = existing.customer_email or customer['customer_email']
+            existing.client_code = existing.client_code or customer['client_code']
+            db.session.commit()
+        return jsonify(
+            reservation_id=existing.id,
+            allocation_id=existing.allocation_id,
+            account=existing.cuenta,
+            code=existing.codigo,
+            status=existing.estado,
+        )
+
+    if not allow_create:
+        return jsonify(error='Reservation not found', code='RESERVATION_NOT_FOUND'), 404
+
+    restriction = get_tibadigital_restriction(
+        customer['user_id'],
+        cuenta,
+        customer['client_code'],
+    )
+    if restriction:
+        return jsonify(
+            error=f"Debés esperar {restriction['remaining_days']} día(s) para volver a comprar esta cuenta.",
+            code='PURCHASE_RESTRICTED',
+            remaining_days=restriction['remaining_days'],
+            available_at=restriction['available_at'].isoformat(),
+        ), 409
+
+    try:
+        available_code = (
+            Codigo.query
+            .filter(func.lower(Codigo.cuenta) == cuenta.lower())
+            .order_by(Codigo.id.asc())
+            .with_for_update(skip_locked=True)
+            .first()
+        )
+        if not available_code:
+            return jsonify(error='No codes available for this account', code='CODE_UNAVAILABLE'), 409
+
+        reservation = ReservaCodigo(
+            allocation_id=allocation_id,
+            order_id=order_id,
+            usuario=customer['user_id'],
+            customer_name=customer['customer_name'],
+            customer_email=customer['customer_email'],
+            client_code=customer['client_code'],
+            cuenta=available_code.cuenta,
+            codigo=available_code.codigo,
+            estado='reserved',
+        )
+        db.session.delete(available_code)
+        db.session.add(reservation)
+        db.session.commit()
+        return jsonify(
+            reservation_id=reservation.id,
+            allocation_id=reservation.allocation_id,
+            account=reservation.cuenta,
+            code=reservation.codigo,
+            status=reservation.estado,
+        ), 201
+    except IntegrityError:
+        db.session.rollback()
+        existing = ReservaCodigo.query.filter_by(allocation_id=allocation_id).first()
+        if existing and existing.order_id == order_id and existing.cuenta.lower() == cuenta.lower():
+            return jsonify(
+                reservation_id=existing.id,
+                allocation_id=existing.allocation_id,
+                account=existing.cuenta,
+                code=existing.codigo,
+                status=existing.estado,
+            )
+        return jsonify(error='Could not reserve the code'), 409
+    except Exception:
+        db.session.rollback()
+        logger.exception('Could not reserve a code for allocation %s', allocation_id)
+        return jsonify(error='Could not reserve the code'), 500
+
+@app.route('/api/v1/codes/confirm', methods=['POST'])
+def confirm_code_for_order():
+    if not require_tibadigital_api_key():
+        return jsonify(error='Unauthorized'), 401
+
+    payload = request.get_json(silent=True) or {}
+    allocation_id = str(payload.get('allocation_id') or '').strip()
+    order_id = str(payload.get('order_id') or '').strip()
+    customer = tibadigital_customer_from_payload(payload)
+    if not allocation_id or not order_id or not all(customer.values()):
+        return jsonify(
+            error=(
+                'allocation_id, order_id, user_id, customer_name, customer_email '
+                'and client_code are required'
+            )
+        ), 400
+
+    reservation = ReservaCodigo.query.filter_by(allocation_id=allocation_id).first()
+    if not reservation:
+        return jsonify(error='Reservation not found'), 404
+    if reservation.order_id != order_id:
+        return jsonify(error='Reservation does not belong to this order'), 409
+    if reservation.usuario and reservation.usuario != customer['user_id']:
+        return jsonify(error='Reservation does not belong to this TIBADIGITAL user'), 409
+    if (
+        (reservation.customer_name and reservation.customer_name != customer['customer_name'])
+        or (
+            reservation.customer_email
+            and reservation.customer_email.lower() != customer['customer_email']
+        )
+        or (reservation.client_code and reservation.client_code.upper() != customer['client_code'])
+    ):
+        return jsonify(error='Customer data does not match the reservation'), 409
+    completed_legacy_data = (
+        not reservation.usuario
+        or not reservation.customer_name
+        or not reservation.customer_email
+        or not reservation.client_code
+    )
+    if completed_legacy_data:
+        reservation.usuario = reservation.usuario or customer['user_id']
+        reservation.customer_name = reservation.customer_name or customer['customer_name']
+        reservation.customer_email = reservation.customer_email or customer['customer_email']
+        reservation.client_code = reservation.client_code or customer['client_code']
+
+    if reservation.estado != 'used':
+        restriction = get_tibadigital_restriction(
+            reservation.usuario,
+            reservation.cuenta,
+            reservation.client_code,
+        )
+        if restriction:
+            return jsonify(
+                error=f"Debés esperar {restriction['remaining_days']} día(s) para volver a comprar esta cuenta.",
+                code='PURCHASE_RESTRICTED',
+                remaining_days=restriction['remaining_days'],
+                available_at=restriction['available_at'].isoformat(),
+            ), 409
+        reservation.estado = 'used'
+        reservation.used_at = func.now()
+        db.session.add(Historial(
+            usuario=tibadigital_history_user(reservation.customer_name),
+            cuenta=reservation.cuenta,
+            codigo=reservation.codigo,
+            origen='TIBADIGITAL',
+            external_user_id=reservation.usuario,
+            customer_email=reservation.customer_email,
+            client_code=reservation.client_code,
+        ))
+        db.session.commit()
+    elif completed_legacy_data:
+        db.session.commit()
+
+    return jsonify(
+        reservation_id=reservation.id,
+        allocation_id=reservation.allocation_id,
+        status=reservation.estado,
+    )
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         nombre_o_email = request.form['usuario']
         contraseña = request.form['contraseña']
-        # Buscar usuario por nombre o email usando SQLAlchemy
-        user = Usuario.query.filter((Usuario.nombre == nombre_o_email) | (Usuario.email == nombre_o_email)).first()
+        # Buscar usuario por nombre o email, insensible a mayúsculas/minúsculas
+        nombre_o_email_lower = nombre_o_email.lower()
+        user = Usuario.query.filter(
+            (func.lower(Usuario.nombre) == nombre_o_email_lower) |
+            (func.lower(Usuario.email) == nombre_o_email_lower)
+        ).first()
+        if user and not user.activo:
+            mensaje = "⚠️ Tu cuenta no cumple con los requisitos para utilizar el sistema."
+            return render_template('login.html', mensaje=mensaje)
         if user and not user.verificado:
             return "⚠️ Tu cuenta aún no fue verificada. Por favor revisá tu correo para activarla."
         if user and check_password_hash(user.contraseña, contraseña):
@@ -105,19 +598,57 @@ def entregar_codigo():
     mensaje = ""
     if request.method == 'POST':
         cuenta = request.form['cuenta']
-        from datetime import datetime, timedelta
+        cuenta_lower = cuenta.lower()
+        from datetime import datetime, timedelta, timezone
+        import math
         hoy = datetime.now().date()
-        codigos_hoy = Historial.query.filter_by(usuario=session['usuario']).filter(db.func.date(Historial.fecha) == hoy).count()
-        if codigos_hoy >= 10:
-            mensaje = "⚠️ Límite diario alcanzado: no podés pedir más de 10 códigos hoy."
+        # Si el usuario es admin, no hay restricciones
+        if session.get('rol') == 'admin':
+            row = Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta_lower).first()
+            if row:
+                codigo_id = row.id
+                codigo = row.codigo
+                db.session.delete(row)
+                nuevo_historial = Historial(usuario=session['usuario'], cuenta=cuenta, codigo=codigo)
+                db.session.add(nuevo_historial)
+                db.session.commit()
+                mensaje = f"✅ Tu código es: {codigo}"
+            else:
+                mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
             return render_template("entregar_codigo.html", mensaje=mensaje)
-        cinco_dias_atras = datetime.now() - timedelta(days=5)
-        ultima = Historial.query.filter_by(usuario=session['usuario'], cuenta=cuenta).order_by(Historial.fecha.desc()).first()
-        if ultima and ultima.fecha > cinco_dias_atras:
-            dias_restantes = (ultima.fecha + timedelta(days=5) - datetime.now()).days + 1
+        # Restricciones para usuarios comunes
+        usuario_actual = Usuario.query.filter_by(nombre=session['usuario']).first()
+        codigo_cliente_usuario = (usuario_actual.codigo_cliente or '').strip().upper() if usuario_actual else ''
+        dias_restriccion = 3
+        if codigo_cliente_usuario.startswith('RV'):
+            dias_restriccion = 2
+        elif codigo_cliente_usuario.startswith('CF'):
+            dias_restriccion = 7
+
+        ahora = datetime.now(timezone.utc).replace(tzinfo=None)
+        fecha_restriccion = ahora - timedelta(days=dias_restriccion)
+        identidades_historial = [Historial.usuario == session['usuario']]
+        if codigo_cliente_usuario:
+            identidades_historial.append(
+                and_(
+                    Historial.origen == 'TIBADIGITAL',
+                    func.upper(Historial.client_code) == codigo_cliente_usuario,
+                )
+            )
+        ultima = Historial.query.filter(
+            or_(*identidades_historial),
+            func.lower(Historial.cuenta) == cuenta_lower
+        ).order_by(Historial.fecha.desc()).first()
+
+        if ultima and ultima.fecha > fecha_restriccion:
+            dias_restantes = math.ceil(
+                (ultima.fecha + timedelta(days=dias_restriccion) - ahora).total_seconds() / 86400
+            )
+            if dias_restantes < 1:
+                dias_restantes = 1
             mensaje = f"⚠️ Debés esperar {dias_restantes} día(s) para volver a pedir un código de esta cuenta."
             return render_template("entregar_codigo.html", mensaje=mensaje)
-        row = Codigo.query.filter_by(cuenta=cuenta).first()
+        row = Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta_lower).first()
         if row:
             codigo_id = row.id
             codigo = row.codigo
@@ -135,42 +666,97 @@ def admin():
     mensaje_codigo = ""
     mensaje_usuario = ""
     mensaje_csv = ""
+    mensaje_gestion = ""
     historial = []
     usuarios_historial = []
     cuentas_historial = []
     mensaje_admin = ""
 
+    # Blanquear (liberar) un código de cliente si se solicita
+    if request.method == 'POST' and 'blanquear_codigo_cliente' in request.form:
+        codigo_blanquear = request.form['blanquear_codigo_cliente']
+        codigo_obj = CodigoCliente.query.filter_by(codigo_cliente=codigo_blanquear).first()
+        if codigo_obj:
+            codigo_obj.usado = False
+            # Si hay un usuario con ese código, lo desvinculamos
+            usuario_asociado = Usuario.query.filter_by(codigo_cliente=codigo_blanquear).first()
+            if usuario_asociado:
+                usuario_asociado.codigo_cliente = None
+            db.session.commit()
+            mensaje_csv += f"\n🔄 Código '{codigo_blanquear}' blanqueado y disponible."
+
     # Obtener email actual del admin
     admin_user = Usuario.query.filter_by(nombre='admin').first()
     admin_email = admin_user.email if admin_user else ''
 
-    # Alta de códigos
+    # Alta de códigos (insensible a mayúsculas/minúsculas)
     if 'cuenta' in request.form and 'codigo' in request.form:
         cuenta = request.form['cuenta']
         codigo = request.form['codigo']
-        existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
+        existe = Codigo.query.filter(
+            func.lower(Codigo.cuenta) == cuenta.lower(),
+            func.lower(Codigo.codigo) == codigo.lower()
+        ).first()
         if not existe:
             nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
             db.session.add(nuevo_codigo)
             db.session.commit()
         mensaje_codigo = "✅ Código cargado correctamente"
 
-    # Alta de usuarios
+    # Alta de usuarios (permite asignar código de cliente)
     if 'nuevo_usuario' in request.form and 'nueva_contraseña' in request.form:
         nuevo_usuario = request.form['nuevo_usuario']
         nueva_contraseña = request.form['nueva_contraseña']
+        nuevo_email = request.form.get('nuevo_email', '').strip()
         rol = request.form.get('rol', 'cliente')
+        codigo_cliente = request.form.get('codigo_cliente', '').strip()
         hashed_password = generate_password_hash(nueva_contraseña)
         try:
-            nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol=rol, email='', verificado=True)
+            codigo_cliente_asignado = None
+            if codigo_cliente:
+                # Buscar código de cliente insensible a mayúsculas/minúsculas y que no esté usado
+                codigo_obj = CodigoCliente.query.filter(
+                    func.lower(CodigoCliente.codigo_cliente) == codigo_cliente.lower(),
+                    CodigoCliente.usado == False
+                ).first()
+                if not codigo_obj:
+                    mensaje_usuario = f"⚠️ Código de cliente inválido o ya utilizado. Usuario no creado."
+                    return render_template("admin.html", mensaje_usuario=mensaje_usuario, mensaje_codigo=mensaje_codigo, mensaje_csv=mensaje_csv, mensaje_gestion=mensaje_gestion, cuentas_codigos=[], historial=historial, usuarios_historial=usuarios_historial, cuentas_historial=cuentas_historial, mensaje_admin=mensaje_admin, admin_email=admin_email)
+                codigo_obj.usado = True
+                codigo_cliente_asignado = codigo_obj.codigo_cliente
+            auto_verified = should_auto_verify_new_user(nuevo_email)
+            nuevo = Usuario(
+                nombre=nuevo_usuario,
+                contraseña=hashed_password,
+                rol=rol,
+                email=nuevo_email,
+                verificado=auto_verified,
+                codigo_cliente=codigo_cliente_asignado,
+            )
             db.session.add(nuevo)
+            if not auto_verified:
+                from itsdangerous import URLSafeTimedSerializer
+                serializer = URLSafeTimedSerializer(app.secret_key)
+                token = serializer.dumps(nuevo_email)
+                link = f"{BASE_URL}/verificar/{token}"
+                email_text, email_html = verification_email_content(nuevo_usuario, link)
+                send_email_message(
+                    "Verificación de cuenta",
+                    nuevo_email,
+                    email_text,
+                    email_html,
+                )
             db.session.commit()
-            mensaje_usuario = f"✅ Usuario '{nuevo_usuario}' creado correctamente"
-        except Exception:
+            mensaje_usuario = verification_result_message(auto_verified, nuevo_usuario)
+        except IntegrityError:
             db.session.rollback()
             mensaje_usuario = f"⚠️ El usuario '{nuevo_usuario}' ya existe"
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("No se pudo crear el usuario '%s' o enviar su correo de verificación.", nuevo_usuario)
+            mensaje_usuario = f"⚠️ No se pudo enviar el correo de verificación. El usuario '{nuevo_usuario}' no fue creado: {e}"
 
-    # Procesar archivo CSV de códigos de juego si se envía
+    # Procesar archivo CSV de códigos de juego si se envía (insensible a mayúsculas/minúsculas)
     if 'archivo_csv' in request.files:
         archivo = request.files['archivo_csv']
         if archivo.filename.endswith('.csv'):
@@ -178,30 +764,51 @@ def admin():
                 import io
                 stream = io.TextIOWrapper(archivo.stream, encoding='utf-8')
                 reader = csv.DictReader(stream)
+                # Cargar todos los códigos existentes en memoria para evitar consultas repetidas (en minúsculas)
+                existentes = set((c.cuenta.lower(), c.codigo.lower()) for c in Codigo.query.with_entities(Codigo.cuenta, Codigo.codigo).all())
+                # Cargar todos los códigos entregados en historial (en minúsculas)
+                entregados = set((h.cuenta.lower(), h.codigo.lower()) for h in Historial.query.with_entities(Historial.cuenta, Historial.codigo).all())
+                nuevos = []
                 contador = 0
                 ignoradas = 0
+                obsoletos = 0
                 for fila in reader:
-                    # Validar que la fila tenga ambas claves y que no sean vacías ni solo espacios
                     cuenta = (fila.get("cuenta") or '').strip()
                     codigo = (fila.get("codigo") or '').strip()
                     if not cuenta or not codigo:
                         ignoradas += 1
                         continue
-                    existe = Codigo.query.filter_by(cuenta=cuenta, codigo=codigo).first()
-                    if not existe:
-                        nuevo_codigo = Codigo(cuenta=cuenta, codigo=codigo)
-                        db.session.add(nuevo_codigo)
-                        contador += 1
-                db.session.commit()
+                    if (cuenta.lower(), codigo.lower()) in entregados:
+                        obsoletos += 1
+                        continue
+                    if (cuenta.lower(), codigo.lower()) in existentes:
+                        ignoradas += 1
+                        continue
+                    nuevos.append(Codigo(cuenta=cuenta, codigo=codigo))
+                    existentes.add((cuenta.lower(), codigo.lower()))
+                    contador += 1
+                if nuevos:
+                    db.session.bulk_save_objects(nuevos)
+                    db.session.commit()
                 if contador == 0:
-                    mensaje_csv = f"⚠️ No se insertó ningún código válido. Revisa el formato del archivo. Filas ignoradas: {ignoradas}."
+                    mensaje_csv = f"⚠️ No se insertó ningún código válido. Revisa el formato del archivo. Filas ignoradas: {ignoradas}. Códigos obsoletos ignorados: {obsoletos}."
                 else:
-                    mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos. Filas ignoradas: {ignoradas}."
+                    mensaje_csv = f"✅ Archivo CSV cargado correctamente. Se insertaron {contador} códigos nuevos. Filas ignoradas: {ignoradas}. Códigos obsoletos ignorados: {obsoletos}."
             except Exception as e:
                 db.session.rollback()
                 mensaje_csv = f"⚠️ Error al procesar el archivo: {e}"
         else:
             mensaje_csv = "⚠️ El archivo debe ser .csv"
+
+    # Borrar todos los códigos de cliente si se solicita
+    if request.method == 'POST' and request.form.get('eliminar_codigos_cliente') == '1':
+        try:
+            CodigoCliente.query.delete()
+            db.session.commit()
+            mensaje_csv += "\n🗑️ Todos los códigos de cliente fueron eliminados correctamente."
+        except Exception as e:
+            db.session.rollback()
+            mensaje_csv += f"\n⚠️ Error al eliminar los códigos de cliente: {e}"
 
     # Procesar archivo CSV de códigos de cliente si se envía
     if 'archivo_codigos_cliente' in request.files:
@@ -210,33 +817,70 @@ def admin():
             try:
                 contenido = archivo.read().decode('utf-8').splitlines()
                 reader = csv.DictReader(contenido)
+                existentes = set(c.codigo_cliente for c in CodigoCliente.query.with_entities(CodigoCliente.codigo_cliente).all())
+                nuevos = []
                 contador = 0
                 ignoradas = 0
+                actualizados = 0
                 for fila in reader:
+                    email = (fila.get('email') or '').strip().lower()
                     codigo_cliente = (fila.get('codigo_cliente') or fila.get('codigo') or '').strip()
                     if not codigo_cliente:
                         ignoradas += 1
                         continue
-                    existe = CodigoCliente.query.filter_by(codigo_cliente=codigo_cliente).first()
-                    if not existe:
-                        nuevo_codigo_cliente = CodigoCliente(codigo_cliente=codigo_cliente, usado=False)
-                        db.session.add(nuevo_codigo_cliente)
+                    # Si el código no existe, lo agrego a la tabla CodigoCliente
+                    if codigo_cliente not in existentes:
+                        nuevos.append(CodigoCliente(codigo_cliente=codigo_cliente, usado=False))
+                        existentes.add(codigo_cliente)
                         contador += 1
+                    # Si el email existe en la tabla Usuario, actualizo su código_cliente
+                    if email:
+                        usuario = Usuario.query.filter(db.func.lower(Usuario.email) == email).first()
+                        if usuario:
+                            usuario.codigo_cliente = codigo_cliente
+                            actualizados += 1
+                if nuevos:
+                    db.session.bulk_save_objects(nuevos)
                 db.session.commit()
-                if contador == 0:
-                    mensaje_csv += "\n⚠️ No se insertó ningún código de cliente válido. Revisa el formato del archivo. Filas ignoradas: {}.".format(ignoradas)
-                else:
-                    mensaje_csv += "\n✅ Códigos de cliente cargados correctamente. Se insertaron {} códigos nuevos. Filas ignoradas: {}.".format(contador, ignoradas)
+                mensaje_csv += f"\n✅ Códigos de cliente cargados correctamente. Se insertaron {contador} códigos nuevos. Filas ignoradas: {ignoradas}. Se actualizaron {actualizados} usuarios."
             except Exception as e:
                 db.session.rollback()
                 mensaje_csv += f"\n⚠️ Error al procesar los códigos de cliente: {e}"
         else:
             mensaje_csv += "\n⚠️ El archivo de códigos de cliente debe ser .csv"
 
-    # Mostrar códigos
-    codigos = Codigo.query.order_by(Codigo.cuenta).all()
+    # Eliminación múltiple por cuenta: borra todos los códigos asociados a cada cuenta seleccionada
+    if request.method == 'POST' and request.form.get('accion_admin') == 'eliminar_cuentas_seleccionadas':
+        cuentas_raw = request.form.getlist('cuentas_seleccionadas')
+        cuentas_normalizadas = []
+        for cuenta in cuentas_raw:
+            cuenta_limpia = (cuenta or '').strip()
+            if cuenta_limpia:
+                cuentas_normalizadas.append(cuenta_limpia)
 
-    # Filtros para historial
+        cuentas_unicas = list(dict.fromkeys(cuentas_normalizadas))
+
+        if not cuentas_unicas:
+            mensaje_gestion = "⚠️ Seleccioná al menos una cuenta para eliminar."
+        else:
+            try:
+                eliminados_total = 0
+                for cuenta in cuentas_unicas:
+                    eliminados_total += Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta.lower()).delete(synchronize_session=False)
+                db.session.commit()
+                mensaje_gestion = f"✅ Se eliminaron {eliminados_total} código(s) de {len(cuentas_unicas)} cuenta(s)."
+            except Exception as e:
+                db.session.rollback()
+                mensaje_gestion = f"⚠️ Error al eliminar cuentas seleccionadas: {e}"
+
+    # Listado de cuentas únicas para gestión (sin agregaciones pesadas)
+    cuentas_codigos = [
+        row[0] for row in db.session.query(Codigo.cuenta).distinct().order_by(Codigo.cuenta).all()
+    ]
+    # Ya no se mostrará la tabla de códigos de cliente en el panel admin
+    # codigos_cliente = CodigoCliente.query.order_by(CodigoCliente.codigo_cliente).all()
+
+    # Filtros para historial (insensible a mayúsculas/minúsculas)
     usuario_filtro = request.args.get('usuario_filtro', '').strip()
     cuenta_filtro = request.args.get('cuenta_filtro', '').strip()
     fecha_inicio = request.args.get('fecha_inicio', '').strip()
@@ -250,14 +894,16 @@ def admin():
     if usuario_filtro or cuenta_filtro or fecha_inicio or fecha_fin:
         query = Historial.query
         if usuario_filtro:
-            query = query.filter_by(usuario=usuario_filtro)
+            query = query.filter(Historial.usuario.ilike(f"%{usuario_filtro}%"))
         if cuenta_filtro:
-            query = query.filter_by(cuenta=cuenta_filtro)
+            query = query.filter(Historial.cuenta.ilike(f"%{cuenta_filtro}%"))
         if fecha_inicio:
             query = query.filter(Historial.fecha >= fecha_inicio)
         if fecha_fin:
             query = query.filter(Historial.fecha <= fecha_fin)
-        historial = query.order_by(Historial.fecha.desc()).limit(100).all()
+        resultados = query.order_by(Historial.fecha.desc()).limit(100).all()
+        # Convertir a lista de tuplas para el template
+        historial = [(h.usuario, h.cuenta, h.codigo, h.fecha) for h in resultados]
     else:
         historial = []
 
@@ -290,6 +936,8 @@ def admin():
                         mensaje_codigo=mensaje_codigo,
                         mensaje_usuario=mensaje_usuario,
                         mensaje_csv=mensaje_csv,
+                        mensaje_gestion=mensaje_gestion,
+                        cuentas_codigos=cuentas_codigos,
                         historial=historial,
                         usuarios_historial=usuarios_historial,
                         cuentas_historial=cuentas_historial,
@@ -300,27 +948,46 @@ def admin():
 def recuperar_clave():
     mensaje = ""
     if request.method == 'POST':
+        if not EMAIL_DELIVERY_ENABLED:
+            mensaje = "⚠️ La recuperación por correo está deshabilitada en este despliegue. Contactá al administrador."
+            return render_template("recuperar_clave.html", mensaje=mensaje)
         email = request.form['email']
         user = Usuario.query.filter_by(email=email).first()
         if user:
             nombre = user.nombre
             reset_link = f"{BASE_URL}/resetear-clave/{nombre}"
             try:
-                msg = EmailMessage()
-                msg.set_content(f"Hola {nombre},\n\nPara cambiar tu contraseña hacé clic en el siguiente enlace:\n{reset_link}")
-                msg["Subject"] = "Recuperación de contraseña"
-                msg["From"] = EMAIL_ADDRESS
-                msg["To"] = email
-                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-                    smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                    smtp.send_message(msg)
+                send_email_message(
+                    "Recuperación de contraseña",
+                    email,
+                    f"Hola {nombre},\n\nPara cambiar tu contraseña hacé clic en el siguiente enlace:\n{reset_link}",
+                )
                 mensaje = "📩 Se envió un correo con las instrucciones para recuperar la contraseña."
             except Exception as e:
+                logger.exception("No se pudo enviar el correo de recuperación a '%s'.", email)
                 mensaje = f"⚠️ No se pudo enviar el correo: {e}"
         else:
             mensaje = "⚠️ No se encontró ninguna cuenta con ese correo."
     return render_template("recuperar_clave.html", mensaje=mensaje)
 
+@app.route('/verificar/<token>')
+def verificar_cuenta(token):
+    from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    try:
+        email = serializer.loads(token, max_age=3600*24*2)  # 2 días de validez
+    except SignatureExpired:
+        return "El enlace de verificación expiró. Solicita uno nuevo."
+    except BadSignature:
+        return "Enlace de verificación inválido."
+    user = Usuario.query.filter_by(email=email).first()
+    if not user:
+        return "Usuario no encontrado."
+    if user.verificado:
+        return "La cuenta ya está verificada. Puedes iniciar sesión."
+    user.verificado = True
+    db.session.commit()
+    return "✅ Cuenta verificada correctamente. Ya puedes iniciar sesión."
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     mensaje = ""
@@ -339,34 +1006,49 @@ def register():
             mensaje = "⚠️ Debés ingresar un correo electrónico válido."
             return render_template("register.html", mensaje=mensaje)
 
-        # Verificar que el código exista y no haya sido usado
-        codigo_valido = CodigoCliente.query.filter_by(codigo_cliente=codigo_cliente, usado=False).first()
+        # Verificar que el código exista y no haya sido usado (insensible a mayúsculas/minúsculas)
+        codigo_valido = CodigoCliente.query.filter(
+            func.lower(CodigoCliente.codigo_cliente) == codigo_cliente.lower(),
+            CodigoCliente.usado == False
+        ).first()
         if not codigo_valido:
             mensaje = "⚠️ Código de cliente inválido o ya utilizado."
         else:
             try:
                 hashed_password = generate_password_hash(nueva_contraseña)
-                nuevo = Usuario(nombre=nuevo_usuario, contraseña=hashed_password, rol='cliente', email=email, verificado=False)
+                auto_verified = should_auto_verify_new_user(email)
+                # Asignar el código de cliente al usuario
+                nuevo = Usuario(
+                    nombre=nuevo_usuario,
+                    contraseña=hashed_password,
+                    rol='cliente',
+                    email=email,
+                    verificado=auto_verified,
+                    codigo_cliente=codigo_valido.codigo_cliente,
+                )
                 db.session.add(nuevo)
-                # Enviar correo de verificación
-                token_link = f"{BASE_URL}/verificar-email/{nuevo_usuario}"
-                msg = EmailMessage()
-                msg.set_content(f"Hola {nuevo_usuario},\n\nPor favor verificá tu cuenta haciendo clic en el siguiente enlace:\n{token_link}")
-                msg["Subject"] = "Verificá tu cuenta"
-                msg["From"] = EMAIL_ADDRESS
-                msg["To"] = email
-                try:
-                    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-                        smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-                        smtp.send_message(msg)
-                except Exception as e:
-                    print(f"Error enviando correo de verificación: {e}")
+                if not auto_verified:
+                    from itsdangerous import URLSafeTimedSerializer
+                    serializer = URLSafeTimedSerializer(app.secret_key)
+                    token = serializer.dumps(email)
+                    token_link = f"{BASE_URL}/verificar/{token}"
+                    email_text, email_html = verification_email_content(nuevo_usuario, token_link)
+                    send_email_message(
+                        "Verificá tu cuenta",
+                        email,
+                        email_text,
+                        email_html,
+                    )
                 codigo_valido.usado = True
                 db.session.commit()
-                mensaje = "✅ Cuenta creada con éxito. Iniciá sesión."
-            except Exception:
+                mensaje = registration_result_message(auto_verified)
+            except IntegrityError:
                 db.session.rollback()
                 mensaje = "⚠️ Ese usuario ya existe."
+            except Exception as e:
+                db.session.rollback()
+                logger.exception("No se pudo crear la cuenta '%s' o enviar su correo de verificación.", nuevo_usuario)
+                mensaje = f"⚠️ No se pudo enviar el correo de verificación. La cuenta no fue creada: {e}"
         return render_template("register.html", mensaje=mensaje)
     return render_template("register.html")
 
@@ -397,6 +1079,7 @@ def gestionar_usuarios():
         return redirect(url_for('login'))
 
     mensaje = ""
+    buscar_codigo_cliente = request.args.get('buscar_codigo_cliente', '').strip()
 
     # Cambiar rol de usuario
     if request.method == 'POST' and 'cambiar_rol_usuario' in request.form:
@@ -408,17 +1091,62 @@ def gestionar_usuarios():
             db.session.commit()
             mensaje = f"✅ Rol de {nombre} actualizado a {nuevo_rol}."
 
+    # Activar/desactivar usuarios en bloque
+    if request.method == 'POST' and 'accion_estado_masivo' in request.form:
+        accion_estado = request.form.get('accion_estado_masivo', '').strip().lower()
+        seleccion_raw = request.form.get('usuarios_seleccionados', '')
+        seleccion = [nombre.strip() for nombre in seleccion_raw.split(',') if nombre.strip()]
+
+        if not seleccion:
+            mensaje = "⚠️ Debes seleccionar al menos un usuario."
+        else:
+            usuarios_obj = Usuario.query.filter(Usuario.nombre.in_(seleccion)).all()
+            if not usuarios_obj:
+                mensaje = "⚠️ No se encontraron usuarios seleccionados."
+            else:
+                if accion_estado == 'activar':
+                    for user in usuarios_obj:
+                        user.activo = True
+                    mensaje = f"✅ Se activaron {len(usuarios_obj)} usuario(s)."
+                elif accion_estado == 'desactivar':
+                    for user in usuarios_obj:
+                        user.activo = False
+                    mensaje = f"✅ Se desactivaron {len(usuarios_obj)} usuario(s)."
+                else:
+                    for user in usuarios_obj:
+                        user.activo = not bool(user.activo)
+                    mensaje = f"✅ Se actualizó el estado de {len(usuarios_obj)} usuario(s)."
+                db.session.commit()
+
+    # ...eliminada función de asignar código de cliente manualmente...
+
     # Eliminar usuario
     if request.method == 'POST' and 'eliminar_usuario' in request.form:
         nombre = request.form['eliminar_usuario']
         user = Usuario.query.filter_by(nombre=nombre).first()
         if user:
+            # Si el usuario tiene un código_cliente, lo marcamos como disponible
+            if user.codigo_cliente:
+                codigo_obj = CodigoCliente.query.filter_by(codigo_cliente=user.codigo_cliente).first()
+                if codigo_obj:
+                    codigo_obj.usado = False
             db.session.delete(user)
             db.session.commit()
             mensaje = f"🗑️ Usuario {nombre} eliminado correctamente."
 
-    # Obtener lista de usuarios
-    usuarios = Usuario.query.filter(Usuario.nombre != 'admin').order_by(Usuario.nombre).all()
+    # Obtener lista de usuarios (incluyendo código de cliente), con filtro opcional por código
+    query_usuarios = Usuario.query.filter(Usuario.nombre != 'admin')
+    if buscar_codigo_cliente:
+        query_usuarios = query_usuarios.filter(
+            func.lower(func.coalesce(Usuario.codigo_cliente, '')).like(f"%{buscar_codigo_cliente.lower()}%")
+        )
+
+    # Evita errores 500 en PostgreSQL cuando existen códigos con formato no numérico.
+    usuarios = query_usuarios.order_by(
+        db.case((Usuario.codigo_cliente.is_(None), 1), else_=0),
+        Usuario.codigo_cliente.asc(),
+        Usuario.nombre.asc()
+    ).all()
 
     # Obtener últimos accesos (última actividad registrada en historial)
     accesos = {}
@@ -426,17 +1154,26 @@ def gestionar_usuarios():
         if h[0] and h[1]:
             accesos[h[0]] = h[1]
 
-    return render_template("gestionar_usuarios.html", usuarios=[(u.nombre, u.rol, u.email, u.verificado) for u in usuarios], mensaje=mensaje, accesos=accesos)
+    return render_template(
+        "gestionar_usuarios.html",
+        usuarios=[(u.nombre, u.rol, u.email, u.verificado, u.codigo_cliente, u.activo) for u in usuarios],
+        mensaje=mensaje,
+        accesos=accesos,
+        buscar_codigo_cliente=buscar_codigo_cliente
+    )
 
 # Ruta para verificar email
 @app.route('/verificar-email/<usuario>')
 def verificar_email(usuario):
-    user = Usuario.query.filter_by(nombre=usuario).first()
+    user = Usuario.query.filter(func.lower(Usuario.nombre) == usuario.lower()).first()
     if user:
         user.verificado = True
         db.session.commit()
     return render_template("verificar_email.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
+    app.run(
+        host=os.getenv('FLASK_RUN_HOST', '127.0.0.1'),
+        port=int(os.getenv('FLASK_RUN_PORT', '5003')),
+        debug=os.getenv('FLASK_DEBUG', '1') == '1'
+    )

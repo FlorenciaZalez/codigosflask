@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>Entregar Código</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/logo.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @media (max-width: 640px) {
@@ -23,9 +25,22 @@
             <form method="post" class="flex flex-col gap-4 w-full">
                 {% if mensaje %}
                   {% if mensaje.startswith('✅') %}
-                    <div class="text-center text-green-500 text-sm mt-2 mb-2">
+                    <div class="text-center text-green-500 text-sm mt-2 mb-1">
                       ✅ {{ mensaje[1:]|trim }}
                     </div>
+                    {% if mensaje %}
+                      <div class="text-center mb-2">
+                        <button
+                          type="button"
+                          id="btn-copiar-codigo"
+                          data-mensaje="{{ mensaje|trim }}"
+                          class="text-violet-400 hover:underline font-semibold"
+                        >
+                          Copiar código
+                        </button>
+                        <p id="copiar-ok" class="hidden text-green-400 text-xs mt-1">✅ Código copiado</p>
+                      </div>
+                    {% endif %}
                   {% else %}
                     <div class="text-center text-red-500 text-sm mt-2 mb-2">
                        {{ mensaje }}
@@ -46,5 +61,30 @@
             </form>
         </div>
     </div>
+    <script>
+      const copyButton = document.querySelector("#btn-copiar-codigo");
+
+      if (copyButton) {
+        copyButton.addEventListener("click", async function () {
+          const textoACopiar = copyButton.dataset.mensaje;
+          const copiedMessage = document.querySelector("#copiar-ok");
+
+          try {
+            await navigator.clipboard.writeText(textoACopiar);
+            copiedMessage.classList.remove("hidden");
+            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
+          } catch (error) {
+            const tempInput = document.createElement("textarea");
+            tempInput.value = textoACopiar;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            copiedMessage.classList.remove("hidden");
+            setTimeout(() => copiedMessage.classList.add("hidden"), 1800);
+          }
+        });
+      }
+    </script>
 </body>
 </html>

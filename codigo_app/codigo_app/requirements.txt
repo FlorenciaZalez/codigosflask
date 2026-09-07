@@ -1,0 +1,10 @@
+certifi==2025.6.15
+charset-normalizer==3.4.2
+flask
+flask_sqlalchemy
+gunicorn
+idna==3.10
+psycopg2-binary
+python-dotenv
+requests==2.32.4
+urllib3==2.5.0
