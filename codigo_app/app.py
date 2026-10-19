@@ -93,6 +93,32 @@ def verification_email_content(username, verification_url):
     return text_body, html_body
 
 
+def notify_low_stock(cuenta):
+    """Notify after a committed delivery; Telegram failures must not undo it."""
+    token = os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
+    chat_id = os.getenv('TELEGRAM_CHAT_ID', '').strip()
+    if not token or not chat_id:
+        return
+    try:
+        remaining = Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta.lower()).count()
+        if remaining != 1:
+            return
+        response = requests.post(
+            f'https://api.telegram.org/bot{token}/sendMessage',
+            json={
+                'chat_id': chat_id,
+                'text': f'⚠️ Queda solo 1 código disponible en la cuenta {cuenta}.\nCargá nuevos códigos desde el panel de administración.',
+            },
+            timeout=(3, 5),
+        )
+        response.raise_for_status()
+        if response.json().get('ok') is not True:
+            logger.warning('Telegram rechazó el aviso de stock bajo.')
+    except Exception:
+        # Request errors include the URL (and bot token): never log their details.
+        logger.warning('No se pudo enviar el aviso de stock bajo por Telegram.')
+
+
 def ensure_schema_compatibility():
     with db.engine.begin() as connection:
         inspector = inspect(connection)
@@ -308,6 +334,7 @@ def reserve_code_for_order():
         db.session.delete(available_code)
         db.session.add(reservation)
         db.session.commit()
+        notify_low_stock(cuenta)
         return jsonify(
             reservation_id=reservation.id,
             allocation_id=reservation.allocation_id,
@@ -422,6 +449,7 @@ def entregar_codigo():
                 nuevo_historial = Historial(usuario=session['usuario'], cuenta=cuenta, codigo=codigo)
                 db.session.add(nuevo_historial)
                 db.session.commit()
+                notify_low_stock(cuenta)
                 mensaje = f"✅ Tu código es: {codigo}"
             else:
                 mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
@@ -455,6 +483,7 @@ def entregar_codigo():
             nuevo_historial = Historial(usuario=session['usuario'], cuenta=cuenta, codigo=codigo)
             db.session.add(nuevo_historial)
             db.session.commit()
+            notify_low_stock(cuenta)
             mensaje = f"✅ Tu código es: {codigo}"
         else:
             mensaje = "⚠️ No hay códigos disponibles para esta cuenta."
