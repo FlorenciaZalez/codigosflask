@@ -9,3 +9,4 @@ python-dotenv
 requests==2.32.4
 urllib3==2.5.0
 Flask-SQLAlchemy
+psycopg[binary]>=3.2,<4
