@@ -1,6 +1,6 @@
 # Avisos de códigos por Telegram
 
-Se envía un mensaje cuando una entrega web o reserva de TibaDigital deja exactamente 1 código disponible para una cuenta. No se envía de nuevo al bajar a 0; una nueva recarga permite avisar otra vez al llegar a 1. Las cuentas que ya tienen 1 código no generan un aviso retroactivo.
+Se envía un mensaje cuando una entrega web o reserva de TibaDigital deja 0 códigos disponibles para una cuenta. No se avisa cuando queda 1 código ni al intentar pedir códigos de una cuenta vacía. Una nueva recarga permite avisar otra vez cuando se agotan. Las cuentas que ya están vacías no generan un aviso retroactivo.
 
 1. En Telegram, abrí https://t.me/BotFather, enviá `/newbot` y seguí las instrucciones para obtener el token.
 2. Abrí el chat con tu nuevo bot y enviá `/start`.

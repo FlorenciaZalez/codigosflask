@@ -101,13 +101,13 @@ def notify_low_stock(cuenta):
         return
     try:
         remaining = Codigo.query.filter(func.lower(Codigo.cuenta) == cuenta.lower()).count()
-        if remaining != 1:
+        if remaining != 0:
             return
         response = requests.post(
             f'https://api.telegram.org/bot{token}/sendMessage',
             json={
                 'chat_id': chat_id,
-                'text': f'⚠️ Queda solo 1 código disponible en la cuenta {cuenta}.\nCargá nuevos códigos desde el panel de administración.',
+                'text': f'⚠️ No quedan códigos disponibles en la cuenta {cuenta}.\nCargá nuevos códigos desde el panel de administración.',
             },
             timeout=(3, 5),
         )
