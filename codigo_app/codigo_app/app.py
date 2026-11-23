@@ -245,7 +245,7 @@ def tibadigital_history_user(customer_name):
 def restriction_days_for_client_code(client_code):
     normalized_code = str(client_code or '').strip().upper()
     if normalized_code.startswith('RV'):
-        return 2
+        return 1
     if normalized_code.startswith('CF'):
         return 7
     return 3
@@ -621,7 +621,7 @@ def entregar_codigo():
         codigo_cliente_usuario = (usuario_actual.codigo_cliente or '').strip().upper() if usuario_actual else ''
         dias_restriccion = 3
         if codigo_cliente_usuario.startswith('RV'):
-            dias_restriccion = 2
+            dias_restriccion = 1
         elif codigo_cliente_usuario.startswith('CF'):
             dias_restriccion = 7
 

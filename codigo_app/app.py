@@ -459,7 +459,7 @@ def entregar_codigo():
         codigo_cliente_usuario = (usuario_actual.codigo_cliente or '').strip().upper() if usuario_actual else ''
         dias_restriccion = 3
         if codigo_cliente_usuario.startswith('RV'):
-            dias_restriccion = 2
+            dias_restriccion = 1
         elif codigo_cliente_usuario.startswith('CF'):
             dias_restriccion = 7
 
